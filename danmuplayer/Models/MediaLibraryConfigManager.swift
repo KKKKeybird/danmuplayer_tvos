@@ -62,20 +62,7 @@ class MediaLibraryConfigManager: ObservableObject {
     
     /// 设置默认配置（示例）
     private func setDefaultConfigs() {
-        configs = [
-            MediaLibraryConfig(
-                name: "本地WebDAV",
-                baseURL: "http://localhost:8080/webdav",
-                username: nil,
-                password: nil
-            ),
-            MediaLibraryConfig(
-                name: "示例NAS",
-                baseURL: "https://example.nas.com/webdav",
-                username: "demo",
-                password: "demo123"
-            )
-        ]
+        configs = []
         saveConfigs()
     }
     
