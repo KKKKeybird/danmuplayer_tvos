@@ -1,0 +1,117 @@
+/// 文件浏览器逻辑
+import Foundation
+import Combine
+
+/// 管理WebDAV文件浏览状态和数据
+@MainActor
+@available(tvOS 17.0, *)
+class FileBrowserViewModel: ObservableObject {
+    @Published var items: [WebDAVItem] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var showingVideoPlayer = false
+    @Published var selectedVideoItem: WebDAVItem?
+
+    private let webDAVClient: WebDAVClient
+    private var currentPath: String = "/"
+    
+    var client: WebDAVClient { webDAVClient }
+
+    init(client: WebDAVClient, path: String = "/") {
+        self.webDAVClient = client
+        self.currentPath = path
+    }
+
+    var currentDirectoryName: String {
+        if currentPath == "/" {
+            return "根目录"
+        }
+        return (currentPath as NSString).lastPathComponent
+    }
+
+    /// 加载指定路径目录文件列表
+    func loadDirectory(path: String? = nil) {
+        isLoading = true
+        errorMessage = nil
+        if let path = path {
+            currentPath = path
+        }
+
+        webDAVClient.fetchDirectory(at: currentPath) { result in
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success(let items):
+                    // 过滤掉父目录引用，并按目录和文件分组排序
+                    let filteredItems = items.filter { !$0.path.hasSuffix("/..") && !$0.name.isEmpty }
+                    self.items = self.sortItems(filteredItems, by: .name)
+                case .failure(let error):
+                    if let networkError = error as? NetworkError {
+                        self.errorMessage = networkError.localizedDescription
+                    } else {
+                        self.errorMessage = error.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+
+    /// 创建子目录的ViewModel
+    func createChildViewModel(for path: String) -> FileBrowserViewModel {
+        return FileBrowserViewModel(client: webDAVClient, path: path)
+    }
+
+    /// 播放视频文件
+    func playVideo(item: WebDAVItem) {
+        selectedVideoItem = item
+        showingVideoPlayer = true
+    }
+
+    /// 获取视频文件的流媒体URL
+    func getVideoStreamingURL(for item: WebDAVItem, completion: @escaping (Result<URL, Error>) -> Void) {
+        webDAVClient.getStreamingURL(for: item.path, completion: completion)
+    }
+
+    /// 查找同目录下的字幕文件
+    func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem] {
+        let videoBaseName = (videoItem.name as NSString).deletingPathExtension
+        let subtitleExtensions = ["srt", "ass", "ssa", "vtt"]
+        
+        return items.filter { item in
+            !item.isDirectory && 
+            subtitleExtensions.contains((item.name as NSString).pathExtension.lowercased()) &&
+            item.name.lowercased().contains(videoBaseName.lowercased())
+        }
+    }
+
+    /// 支持文件排序（名称、日期、大小）
+    func sortItems(by option: SortOption) {
+        items = sortItems(items, by: option)
+    }
+    
+    private func sortItems(_ items: [WebDAVItem], by option: SortOption) -> [WebDAVItem] {
+        let directories = items.filter { $0.isDirectory }
+        let files = items.filter { !$0.isDirectory }
+        
+        var sortedDirectories: [WebDAVItem]
+        var sortedFiles: [WebDAVItem]
+        
+        switch option {
+        case .name:
+            sortedDirectories = directories.sorted { $0.name.lowercased() < $1.name.lowercased() }
+            sortedFiles = files.sorted { $0.name.lowercased() < $1.name.lowercased() }
+        case .date:
+            sortedDirectories = directories.sorted { ($0.modifiedDate ?? Date.distantPast) > ($1.modifiedDate ?? Date.distantPast) }
+            sortedFiles = files.sorted { ($0.modifiedDate ?? Date.distantPast) > ($1.modifiedDate ?? Date.distantPast) }
+        case .size:
+            sortedDirectories = directories.sorted { $0.name.lowercased() < $1.name.lowercased() } // 目录按名称排序
+            sortedFiles = files.sorted { ($0.size ?? 0) > ($1.size ?? 0) }
+        }
+        
+        return sortedDirectories + sortedFiles
+    }
+
+    enum SortOption {
+        case name, date, size
+    }
+}
