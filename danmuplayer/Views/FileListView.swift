@@ -42,6 +42,23 @@ struct FileListView: View {
                     .padding(.top)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.items.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "folder")
+                        .font(.largeTitle)
+                        .foregroundStyle(.gray)
+                    Text("目录为空")
+                        .font(.headline)
+                    Text("此目录中没有文件或文件夹")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("刷新") {
+                        viewModel.loadDirectory()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(viewModel.items) { item in
                     if item.isDirectory {

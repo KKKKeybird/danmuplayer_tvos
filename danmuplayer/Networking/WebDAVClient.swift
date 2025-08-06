@@ -16,11 +16,20 @@ class WebDAVClient {
     ///   - path: 目录相对路径
     ///   - completion: 回调WebDAVItem数组或错误
     func fetchDirectory(at path: String, completion: @escaping (Result<[WebDAVItem], Error>) -> Void) {
-        let url = baseURL.appendingPathComponent(path)
+        // 处理路径，确保正确的URL构造
+        let normalizedPath = path == "/" ? "" : path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let url: URL
+        if normalizedPath.isEmpty {
+            url = baseURL
+        } else {
+            url = baseURL.appendingPathComponent(normalizedPath)
+        }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "PROPFIND"
         request.setValue("1", forHTTPHeaderField: "Depth")
         request.setValue("application/xml", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
         
         // 添加认证信息
         if let credentials = credentials {
@@ -30,7 +39,7 @@ class WebDAVClient {
             request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
         }
         
-        // 设置PROPFIND请求体
+        // 设置PROPFIND请求体，包含更多属性以增强兼容性
         let propfindBody = """
         <?xml version="1.0" encoding="utf-8" ?>
         <D:propfind xmlns:D="DAV:">
@@ -38,7 +47,10 @@ class WebDAVClient {
                 <D:displayname/>
                 <D:getcontentlength/>
                 <D:getlastmodified/>
+                <D:creationdate/>
                 <D:resourcetype/>
+                <D:getcontenttype/>
+                <D:getetag/>
             </D:prop>
         </D:propfind>
         """

@@ -43,6 +43,9 @@ class WebDAVParser: NSObject, XMLParserDelegate {
             currentLastModified = ""
             currentResourceType = ""
             currentIsDirectory = false
+        } else if (currentElement == "collection" || currentElement.contains("collection")) && isParsingResponse {
+            // 当遇到collection元素时，标记为目录
+            currentIsDirectory = true
         }
     }
     
@@ -61,6 +64,12 @@ class WebDAVParser: NSObject, XMLParserDelegate {
                 currentLastModified += trimmedString
             case "collection":
                 currentIsDirectory = true
+            case "resourcetype":
+                currentResourceType += trimmedString
+                // 检查resourcetype内容是否包含collection
+                if XMLParserHelper.extractResourceType(from: trimmedString) {
+                    currentIsDirectory = true
+                }
             default:
                 break
             }
@@ -72,35 +81,38 @@ class WebDAVParser: NSObject, XMLParserDelegate {
             // 解析完一个response元素，创建WebDAVItem
             guard !currentHref.isEmpty else { return }
             
-            // 从href中提取文件名和路径
-            let decodedHref = currentHref.removingPercentEncoding ?? currentHref
-            let name = currentDisplayName.isEmpty ? URL(fileURLWithPath: decodedHref).lastPathComponent : currentDisplayName
+            // 使用XMLParserHelper进行路径清理和验证
+            let cleanedHref = XMLParserHelper.cleanPath(currentHref)
+            let fileName = currentDisplayName.isEmpty ? 
+                          XMLParserHelper.extractFileName(from: cleanedHref) : 
+                          currentDisplayName
+            
+            // 验证是否为有效的WebDAV项目
+            guard XMLParserHelper.isValidWebDAVItem(href: cleanedHref, displayName: fileName) else {
+                isParsingResponse = false
+                return
+            }
             
             // 解析文件大小
-            let size = Int64(currentContentLength)
+            let size = XMLParserHelper.parseFileSize(currentContentLength)
             
             // 解析修改日期
-            var modifiedDate: Date?
-            if !currentLastModified.isEmpty {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-                formatter.locale = Locale(identifier: "en_US_POSIX")
-                modifiedDate = formatter.date(from: currentLastModified)
+            let modifiedDate = XMLParserHelper.parseWebDAVDate(currentLastModified)
+            
+            // 最终检查resourceType是否标记为目录
+            if !currentIsDirectory && XMLParserHelper.extractResourceType(from: currentResourceType) {
+                currentIsDirectory = true
             }
             
             let item = WebDAVItem(
-                name: name,
-                path: decodedHref,
+                name: fileName,
+                path: cleanedHref,
                 isDirectory: currentIsDirectory,
                 size: size,
                 modifiedDate: modifiedDate
             )
             
-            // 过滤掉父目录本身
-            if !decodedHref.hasSuffix("/") || name != "" {
-                webDAVItems.append(item)
-            }
-            
+            webDAVItems.append(item)
             isParsingResponse = false
         }
         

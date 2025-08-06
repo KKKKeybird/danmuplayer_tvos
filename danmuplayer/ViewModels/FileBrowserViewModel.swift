@@ -56,6 +56,29 @@ class FileBrowserViewModel: ObservableObject {
         }
     }
 
+    /// 测试WebDAV连接
+    func testWebDAVConnection() {
+        isLoading = true
+        errorMessage = nil
+        
+        webDAVClient.testConnection { result in
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success(_):
+                    // 连接成功，重新加载目录
+                    self.loadDirectory()
+                case .failure(let error):
+                    if let networkError = error as? NetworkError {
+                        self.errorMessage = networkError.localizedDescription
+                    } else {
+                        self.errorMessage = error.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+
     /// 创建子目录的ViewModel
     func createChildViewModel(for path: String) -> FileBrowserViewModel {
         return FileBrowserViewModel(client: webDAVClient, path: path)
