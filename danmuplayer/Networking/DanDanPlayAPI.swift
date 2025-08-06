@@ -4,7 +4,14 @@ import CryptoKit
 /// 封装弹弹Play的API请求
 class DanDanPlayAPI {
     private let baseURL = "https://api.dandanplay.net"
-    private let session = URLSession.shared
+    private let session: URLSession
+    
+    init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30.0
+        config.timeoutIntervalForResource = 60.0
+        self.session = URLSession(configuration: config)
+    }
     
     // MARK: - 签名验证
     
@@ -461,7 +468,7 @@ class DanDanPlayAPI {
                     redirectRequest.httpMethod = "GET"
                     redirectRequest.setValue("application/json", forHTTPHeaderField: "Accept")
                     
-                    URLSession.shared.dataTask(with: redirectRequest) { redirectData, redirectResponse, redirectError in
+                    self.session.dataTask(with: redirectRequest) { redirectData, redirectResponse, redirectError in
                         if let redirectError = redirectError {
                             completion(.failure(NetworkError.connectionFailed))
                             return

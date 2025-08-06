@@ -20,11 +20,17 @@ class JellyfinClient {
         self.username = username
         self.password = password
         
-        // 创建支持HTTP的URLSession配置
+        // 创建支持HTTP和自签名证书的URLSession配置
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30.0
         config.timeoutIntervalForResource = 60.0
-        self.urlSession = URLSession(configuration: config)
+        
+        // 创建自定义URLSession来处理自签名证书
+        self.urlSession = URLSession(
+            configuration: config,
+            delegate: JellyfinURLSessionDelegate(),
+            delegateQueue: nil
+        )
     }
     
     /// 测试连接
@@ -83,14 +89,17 @@ class JellyfinClient {
             return
         }
         
-        let url = serverURL.appendingPathComponent("Users/AuthenticateByName")
+        let url = serverURL.appendingPathComponent("Users/authenticatebyname")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("danmuplayer/1.0", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = 15.0 // 认证超时设置稍长
+        request.setValue("DanmuPlayer tvOS/1.0", forHTTPHeaderField: "X-Emby-Client")
+        request.setValue("1.0.0", forHTTPHeaderField: "X-Emby-Client-Version")
+        request.setValue("DanmuPlayer-tvOS", forHTTPHeaderField: "X-Emby-Device-Name")
+        request.setValue("tvOS-\(UUID().uuidString)", forHTTPHeaderField: "X-Emby-Device-Id")
+        request.timeoutInterval = 15.0
         
-        // 使用正确的Jellyfin认证API格式
+        // 使用正确的Jellyfin认证API格式 (新版本格式)
         let authData: [String: Any] = [
             "Username": username,
             "Pw": password
@@ -101,6 +110,9 @@ class JellyfinClient {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: authData)
+            if let bodyString = String(data: request.httpBody!, encoding: .utf8) {
+                print("Request body: \(bodyString)")
+            }
         } catch {
             print("Failed to serialize authentication data: \(error)")
             completion(.failure(error))
@@ -122,10 +134,18 @@ class JellyfinClient {
                 }
                 
                 print("Authentication response code: \(httpResponse.statusCode)")
+                print("Response headers: \(httpResponse.allHeaderFields)")
+                
+                // 打印响应内容用于调试
+                if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                    print("Response body: \(responseString)")
+                }
                 
                 guard httpResponse.statusCode == 200, let data = data else {
                     if httpResponse.statusCode == 401 {
-                        print("Authentication failed: Invalid credentials")
+                        print("Authentication failed: Invalid credentials (401)")
+                    } else if httpResponse.statusCode == 400 {
+                        print("Authentication failed: Bad request (400)")
                     } else {
                         print("Authentication failed with status: \(httpResponse.statusCode)")
                     }
@@ -140,6 +160,7 @@ class JellyfinClient {
                     completion(.success(authResponse.user))
                 } catch {
                     print("Failed to parse authentication response: \(error)")
+                    print("Raw response data: \(String(data: data, encoding: .utf8) ?? "Unable to decode")")
                     completion(.failure(NetworkError.parseError))
                 }
             }
@@ -208,7 +229,7 @@ class JellyfinClient {
         
         addAuthHeader(to: &request)
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(NetworkError.connectionFailed))
@@ -255,7 +276,7 @@ class JellyfinClient {
         
         addAuthHeader(to: &request)
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(NetworkError.connectionFailed))
@@ -320,6 +341,36 @@ class JellyfinClient {
             request.setValue("MediaBrowser Token=\"\(apiKey)\"", forHTTPHeaderField: "Authorization")
         } else if let accessToken = accessToken {
             request.setValue("MediaBrowser Token=\"\(accessToken)\"", forHTTPHeaderField: "Authorization")
+        }
+    }
+}
+
+/// URLSessionDelegate to handle self-signed certificates and HTTP connections
+class JellyfinURLSessionDelegate: NSObject, URLSessionDelegate {
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        
+        // 允许所有证书（包括自签名证书）
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        
+        // 对于本地网络地址，直接信任证书
+        let host = challenge.protectionSpace.host
+        if host.hasPrefix("192.168.") || host.hasPrefix("10.") || host.hasPrefix("172.") || host == "localhost" || host.hasSuffix(".local") {
+            if let serverTrust = challenge.protectionSpace.serverTrust {
+                let credential = URLCredential(trust: serverTrust)
+                completionHandler(.useCredential, credential)
+                return
+            }
+        }
+        
+        // 对于其他地址，也允许（为了支持自签名证书）
+        if let serverTrust = challenge.protectionSpace.serverTrust {
+            let credential = URLCredential(trust: serverTrust)
+            completionHandler(.useCredential, credential)
+        } else {
+            completionHandler(.performDefaultHandling, nil)
         }
     }
 }

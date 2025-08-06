@@ -5,10 +5,23 @@ import Foundation
 class WebDAVClient {
     let baseURL: URL
     let credentials: Credentials?
+    private let urlSession: URLSession
 
     init(baseURL: URL, credentials: Credentials?) {
         self.baseURL = baseURL
         self.credentials = credentials
+        
+        // 创建支持HTTP和自签名证书的URLSession配置
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30.0
+        config.timeoutIntervalForResource = 60.0
+        
+        // 创建自定义URLSession来处理自签名证书
+        self.urlSession = URLSession(
+            configuration: config,
+            delegate: WebDAVURLSessionDelegate(),
+            delegateQueue: nil
+        )
     }
 
     /// 发起请求获取目录文件列表
@@ -52,10 +65,7 @@ class WebDAVClient {
             request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
         }
         
-        // 创建自定义URLSession配置以支持HTTP连接
-        let config = URLSessionConfiguration.default
-        
-        URLSession(configuration: config).dataTask(with: request) { data, response, error in
+        urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(NetworkError.connectionFailed))
@@ -136,10 +146,7 @@ class WebDAVClient {
         """
         request.httpBody = propfindBody.data(using: .utf8)
         
-        // 创建自定义URLSession配置以支持HTTP连接
-        let config = URLSessionConfiguration.default
-        
-        URLSession(configuration: config).dataTask(with: request) { data, response, error in
+        urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(NetworkError.connectionFailed))
@@ -204,10 +211,7 @@ class WebDAVClient {
             let base64LoginString = loginData.base64EncodedString()
             request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
             
-            // 创建自定义URLSession配置以支持HTTP连接
-            let config = URLSessionConfiguration.default
-            
-            URLSession(configuration: config).dataTask(with: request) { _, response, error in
+            urlSession.dataTask(with: request) { _, response, error in
                 DispatchQueue.main.async {
                     if let error = error {
                         completion(.failure(NetworkError.connectionFailed))
@@ -269,10 +273,7 @@ class WebDAVClient {
             request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
         }
         
-        // 创建自定义URLSession配置以支持HTTP连接
-        let config = URLSessionConfiguration.default
-        
-        URLSession(configuration: config).dataTask(with: request) { _, response, error in
+        urlSession.dataTask(with: request) { _, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(NetworkError.connectionFailed))
@@ -298,5 +299,35 @@ class WebDAVClient {
                 }
             }
         }.resume()
+    }
+}
+
+/// URLSessionDelegate to handle self-signed certificates and HTTP connections for WebDAV
+class WebDAVURLSessionDelegate: NSObject, URLSessionDelegate {
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        
+        // 允许所有证书（包括自签名证书）
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        
+        // 对于本地网络地址，直接信任证书
+        let host = challenge.protectionSpace.host
+        if host.hasPrefix("192.168.") || host.hasPrefix("10.") || host.hasPrefix("172.") || host == "localhost" || host.hasSuffix(".local") {
+            if let serverTrust = challenge.protectionSpace.serverTrust {
+                let credential = URLCredential(trust: serverTrust)
+                completionHandler(.useCredential, credential)
+                return
+            }
+        }
+        
+        // 对于其他地址，也允许（为了支持自签名证书）
+        if let serverTrust = challenge.protectionSpace.serverTrust {
+            let credential = URLCredential(trust: serverTrust)
+            completionHandler(.useCredential, credential)
+        } else {
+            completionHandler(.performDefaultHandling, nil)
+        }
     }
 }
