@@ -12,6 +12,8 @@ class JellyfinClient {
     private var accessToken: String?
     private let urlSession: URLSession
     private let deviceId: String
+    private var sessionId: String?
+    private var keepAliveTimer: Timer?
     
     init(serverURL: URL, apiKey: String? = nil, userId: String? = nil, 
          username: String? = nil, password: String? = nil) {
@@ -28,6 +30,10 @@ class JellyfinClient {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30.0
         config.timeoutIntervalForResource = 60.0
+        config.waitsForConnectivity = true
+        config.httpShouldUsePipelining = false
+        config.httpMaximumConnectionsPerHost = 6
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
         
         // 创建自定义URLSession来处理自签名证书
         self.urlSession = URLSession(
@@ -44,10 +50,25 @@ class JellyfinClient {
         request.httpMethod = "GET"
         request.timeoutInterval = 10.0 // 设置10秒超时
         
+        // ✅ 使用正确的Jellyfin客户端认证头部格式
+        let authHeaderValue = "MediaBrowser Client=\"DanmuPlayer\", Device=\"AppleTV\", DeviceId=\"\(deviceId)\", Version=\"1.0.0\""
+        request.setValue(authHeaderValue, forHTTPHeaderField: "X-Emby-Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
         print("Testing connection to: \(url)")
+        print("Device ID: \(deviceId)")
+        print("Auth header: \(authHeaderValue)")
         
         if let apiKey = apiKey {
             request.setValue("MediaBrowser Token=\"\(apiKey)\"", forHTTPHeaderField: "Authorization")
+            request.setValue(apiKey, forHTTPHeaderField: "X-MediaBrowser-Token")
+            print("Using API Key authentication")
+        } else if let accessToken = accessToken {
+            request.setValue("MediaBrowser Token=\"\(accessToken)\"", forHTTPHeaderField: "Authorization")
+            request.setValue(accessToken, forHTTPHeaderField: "X-MediaBrowser-Token")
+            print("Using Access Token authentication")
+        } else {
+            print("No authentication token available")
         }
         
         urlSession.dataTask(with: request) { data, response, error in
@@ -103,33 +124,36 @@ class JellyfinClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("DanmuPlayer", forHTTPHeaderField: "X-Emby-Client")
-        request.setValue("1.0.0", forHTTPHeaderField: "X-Emby-Client-Version")
-        request.setValue("DanmuPlayer-tvOS", forHTTPHeaderField: "X-Emby-Device-Name")
-        request.setValue(deviceId, forHTTPHeaderField: "X-Emby-Device-Id")
-        request.timeoutInterval = 15.0
         
-        // 使用正确的Jellyfin认证API格式，按照官方源码的字段顺序
-        let authRequest: [String: String] = [
-            "Username": username,
-            "Pw": password
-        ]
+        // ✅ 使用正确的Jellyfin认证头部格式
+        let authHeaderValue = "MediaBrowser Client=\"DanmuPlayer\", Device=\"AppleTV\", DeviceId=\"\(deviceId)\", Version=\"1.0.0\""
+        request.setValue(authHeaderValue, forHTTPHeaderField: "X-Emby-Authorization")
+        request.timeoutInterval = 15.0
         
         print("Attempting authentication for user: \(username)")
         print("Authentication URL: \(url)")
         print("Device ID: \(deviceId)")
+        print("Auth header: \(authHeaderValue)")
         
-        // 手动构建JSON以确保字段顺序
-        let jsonString = "{\"Username\":\"\(username)\",\"Pw\":\"\(password)\"}"
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            print("Failed to create JSON data")
+        // 使用正确的请求体格式
+        let authRequest = [
+            "Username": username,
+            "Pw": password
+        ]
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: authRequest, options: [])
+            request.httpBody = jsonData
+            
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                print("Request body: \(jsonString)")
+            }
+        } catch {
+            print("Failed to create JSON data: \(error)")
             completion(.failure(NetworkError.parseError))
             return
         }
-        request.httpBody = jsonData
         
-        print("Request body: \(jsonString)")
         print("Request headers: \(request.allHTTPHeaderFields ?? [:])")
         
         urlSession.dataTask(with: request) { data, response, error in
@@ -169,7 +193,12 @@ class JellyfinClient {
                 do {
                     let authResponse = try JSONDecoder().decode(JellyfinAuthResponse.self, from: data)
                     self.accessToken = authResponse.accessToken
+                    self.sessionId = authResponse.sessionInfo?.id
                     print("Authentication successful for user: \(authResponse.user.name)")
+                    
+                    // 启动会话保持
+                    self.startSessionKeepAlive()
+                    
                     completion(.success(authResponse.user))
                 } catch {
                     print("Failed to parse authentication response: \(error)")
@@ -350,11 +379,66 @@ class JellyfinClient {
     }
     
     private func addAuthHeader(to request: inout URLRequest) {
+        // ✅ 使用正确的Jellyfin客户端认证头部格式
+        let authHeaderValue = "MediaBrowser Client=\"DanmuPlayer\", Device=\"AppleTV\", DeviceId=\"\(deviceId)\", Version=\"1.0.0\""
+        request.setValue(authHeaderValue, forHTTPHeaderField: "X-Emby-Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        // 添加认证令牌
         if let apiKey = apiKey {
+            // 使用API Key作为主要认证方式
             request.setValue("MediaBrowser Token=\"\(apiKey)\"", forHTTPHeaderField: "Authorization")
+            request.setValue(apiKey, forHTTPHeaderField: "X-MediaBrowser-Token")
         } else if let accessToken = accessToken {
+            // 使用Access Token作为备用认证方式
             request.setValue("MediaBrowser Token=\"\(accessToken)\"", forHTTPHeaderField: "Authorization")
+            request.setValue(accessToken, forHTTPHeaderField: "X-MediaBrowser-Token")
         }
+    }
+    
+    /// 启动会话保持机制
+    private func startSessionKeepAlive() {
+        // 停止之前的定时器
+        keepAliveTimer?.invalidate()
+        
+        // 每30秒发送一次心跳
+        keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            self?.sendKeepAlive()
+        }
+        
+        print("Jellyfin: Started session keep-alive timer")
+    }
+    
+    /// 发送心跳请求
+    private func sendKeepAlive() {
+        guard let accessToken = accessToken else { return }
+        
+        let url = serverURL.appendingPathComponent("Sessions/Playing/Ping")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        addAuthHeader(to: &request)
+        
+        print("Jellyfin: Sending keep-alive ping")
+        
+        urlSession.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Jellyfin: Keep-alive ping failed: \(error)")
+            } else if let httpResponse = response as? HTTPURLResponse {
+                print("Jellyfin: Keep-alive ping response: \(httpResponse.statusCode)")
+            }
+        }.resume()
+    }
+    
+    /// 停止会话保持
+    func stopSessionKeepAlive() {
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = nil
+        print("Jellyfin: Stopped session keep-alive timer")
+    }
+    
+    /// 析构函数，清理资源
+    deinit {
+        stopSessionKeepAlive()
     }
 }
 

@@ -29,7 +29,7 @@ struct JellyfinUser: Codable {
 /// Jellyfin认证响应
 struct JellyfinAuthResponse: Codable {
     let user: JellyfinUser
-    let sessionInfo: JellyfinSessionInfo
+    let sessionInfo: JellyfinSessionInfo?
     let accessToken: String
     let serverId: String
     

@@ -36,7 +36,16 @@ class XMLParserHelper {
     
     /// 清理和解码URL路径
     static func cleanPath(_ path: String) -> String {
-        let decoded = path.removingPercentEncoding ?? path
+        var cleanedPath = path
+        
+        // 如果是完整URL，提取路径部分
+        if path.hasPrefix("http://") || path.hasPrefix("https://") {
+            if let url = URL(string: path) {
+                cleanedPath = url.path
+            }
+        }
+        
+        let decoded = cleanedPath.removingPercentEncoding ?? cleanedPath
         // 移除多余的斜杠
         let cleaned = decoded.replacingOccurrences(of: "//+", with: "/", options: .regularExpression)
         return cleaned
