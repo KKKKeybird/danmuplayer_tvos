@@ -89,7 +89,7 @@ class JellyfinClient {
             return
         }
         
-        let url = serverURL.appendingPathComponent("Users/authenticatebyname")
+        let url = serverURL.appendingPathComponent("Users/AuthenticateByName")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -99,10 +99,10 @@ class JellyfinClient {
         request.setValue("tvOS-\(UUID().uuidString)", forHTTPHeaderField: "X-Emby-Device-Id")
         request.timeoutInterval = 15.0
         
-        // 使用正确的Jellyfin认证API格式 (新版本格式)
+        // 使用正确的Jellyfin认证API格式
         let authData: [String: Any] = [
             "Username": username,
-            "Pw": password
+            "Password": password  // 注意：新版本Jellyfin使用"Password"而不是"Pw"
         ]
         
         print("Attempting authentication for user: \(username)")
