@@ -8,12 +8,24 @@ import SwiftUI
 class JellyfinMediaLibraryViewModel: ObservableObject {
     @Published var libraries: [JellyfinLibrary] = []
     @Published var mediaItems: [JellyfinMediaItem] = []
+    @Published var seasons: [JellyfinMediaItem] = []
+    @Published var episodes: [JellyfinEpisode] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var selectedLibrary: JellyfinLibrary?
+    @Published var selectedSeries: JellyfinMediaItem?
+    @Published var selectedSeason: JellyfinMediaItem?
+    @Published var currentLevel: BrowsingLevel = .libraries
     @Published var isAuthenticated = false
     @Published var isPerformingDetailedTest = false
     @Published var connectionTestResults: [String] = []
+    
+    enum BrowsingLevel {
+        case libraries
+        case mediaItems
+        case seasons
+        case episodes
+    }
     
     private let jellyfinClient: JellyfinClient
     private let config: MediaLibraryConfig
@@ -114,7 +126,48 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
     /// 选择媒体库并加载内容
     func selectLibrary(_ library: JellyfinLibrary) {
         selectedLibrary = library
+        currentLevel = .mediaItems
         loadMediaItems(from: library)
+    }
+    
+    /// 选择系列并加载季节
+    func selectSeries(_ series: JellyfinMediaItem) {
+        selectedSeries = series
+        if series.type == "Series" {
+            currentLevel = .seasons
+            loadSeasons(for: series.id)
+        } else if series.type == "Movie" {
+            // 直接播放电影
+            playMovie(series)
+        }
+    }
+    
+    /// 选择季节并加载剧集
+    func selectSeason(_ season: JellyfinMediaItem) {
+        selectedSeason = season
+        currentLevel = .episodes
+        if let seriesId = selectedSeries?.id {
+            loadEpisodes(for: seriesId, seasonId: season.id)
+        }
+    }
+    
+    /// 返回上一级
+    func goBack() {
+        switch currentLevel {
+        case .libraries:
+            break // 已经在顶级
+        case .mediaItems:
+            currentLevel = .libraries
+            selectedLibrary = nil
+        case .seasons:
+            currentLevel = .mediaItems
+            selectedSeries = nil
+            seasons = []
+        case .episodes:
+            currentLevel = .seasons
+            selectedSeason = nil
+            episodes = []
+        }
     }
     
     /// 加载媒体库中的项目
@@ -128,8 +181,10 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
                 self.isLoading = false
                 switch result {
                 case .success(let items):
+                    print("JellyfinMediaLibraryViewModel: Loaded \(items.count) media items")
                     self.mediaItems = items
                 case .failure(let error):
+                    print("JellyfinMediaLibraryViewModel: Failed to load media items: \(error)")
                     if let networkError = error as? NetworkError {
                         self.errorMessage = networkError.localizedDescription
                     } else {
@@ -140,12 +195,86 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         }
     }
     
+    /// 加载系列的季节
+    private func loadSeasons(for seriesId: String) {
+        isLoading = true
+        errorMessage = nil
+        seasons = []
+        
+        jellyfinClient.getSeasons(seriesId: seriesId) { result in
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success(let seasons):
+                    print("JellyfinMediaLibraryViewModel: Loaded \(seasons.count) seasons")
+                    self.seasons = seasons
+                case .failure(let error):
+                    print("JellyfinMediaLibraryViewModel: Failed to load seasons: \(error)")
+                    if let networkError = error as? NetworkError {
+                        self.errorMessage = networkError.localizedDescription
+                    } else {
+                        self.errorMessage = "加载季节失败: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+    }
+    
+    /// 加载剧集
+    private func loadEpisodes(for seriesId: String, seasonId: String? = nil) {
+        isLoading = true
+        errorMessage = nil
+        episodes = []
+        
+        jellyfinClient.getEpisodes(seriesId: seriesId) { result in
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success(let allEpisodes):
+                    // 如果指定了季节ID，过滤出该季节的剧集
+                    let filteredEpisodes: [JellyfinEpisode]
+                    if let seasonId = seasonId {
+                        filteredEpisodes = allEpisodes.filter { $0.seasonId == seasonId }
+                    } else {
+                        filteredEpisodes = allEpisodes
+                    }
+                    print("JellyfinMediaLibraryViewModel: Loaded \(filteredEpisodes.count) episodes")
+                    self.episodes = filteredEpisodes
+                case .failure(let error):
+                    print("JellyfinMediaLibraryViewModel: Failed to load episodes: \(error)")
+                    if let networkError = error as? NetworkError {
+                        self.errorMessage = networkError.localizedDescription
+                    } else {
+                        self.errorMessage = "加载剧集失败: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+    }
+    
+    /// 播放电影
+    private func playMovie(_ movie: JellyfinMediaItem) {
+        // 这里可以添加播放电影的逻辑
+        print("JellyfinMediaLibraryViewModel: Playing movie: \(movie.name)")
+    }
+    
     /// 刷新当前媒体库
     func refresh() {
-        if let selectedLibrary = selectedLibrary {
-            loadMediaItems(from: selectedLibrary)
-        } else {
+        switch currentLevel {
+        case .libraries:
             loadLibraries()
+        case .mediaItems:
+            if let selectedLibrary = selectedLibrary {
+                loadMediaItems(from: selectedLibrary)
+            }
+        case .seasons:
+            if let selectedSeries = selectedSeries {
+                loadSeasons(for: selectedSeries.id)
+            }
+        case .episodes:
+            if let selectedSeries = selectedSeries {
+                loadEpisodes(for: selectedSeries.id, seasonId: selectedSeason?.id)
+            }
         }
     }
     

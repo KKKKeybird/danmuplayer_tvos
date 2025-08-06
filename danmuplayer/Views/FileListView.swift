@@ -80,6 +80,8 @@ struct FileListView: View {
                     } else {
                         Button(action: {
                             if isVideoFile(item.name) {
+                                // 使用ViewModel的方法来播放视频
+                                viewModel.playVideo(item: item)
                                 selectedVideoItem = item
                                 showingVideoPlayer = true
                             }
@@ -131,6 +133,17 @@ struct FileListView: View {
                     subtitleFiles: viewModel.findSubtitleFiles(for: videoItem),
                     webDAVClient: viewModel.client
                 )
+            }
+        }
+        .onChange(of: viewModel.showingVideoPlayer) { oldValue, newValue in
+            if newValue {
+                selectedVideoItem = viewModel.selectedVideoItem
+                showingVideoPlayer = true
+            }
+        }
+        .onChange(of: viewModel.selectedVideoItem) { oldValue, newValue in
+            if let newValue = newValue {
+                selectedVideoItem = newValue
             }
         }
     }

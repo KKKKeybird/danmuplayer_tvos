@@ -45,117 +45,8 @@ class WebDAVClient {
         print("WebDAV: Final URL: \(url)")
         print("WebDAV: Has credentials: \(credentials != nil)")
         
-        // 首先尝试GET请求（适用于HTML目录列表）
-        tryHTMLRequest(url: url) { [weak self] result in
-            switch result {
-            case .success(let items):
-                print("WebDAV: HTML request succeeded with \(items.count) items")
-                completion(.success(items))
-            case .failure(let error):
-                print("WebDAV: HTML request failed: \(error)")
-                print("WebDAV: Falling back to WebDAV PROPFIND request")
-                // 如果HTML解析失败，尝试WebDAV PROPFIND请求
-                self?.tryWebDAVRequest(url: url, completion: completion)
-            }
-        }
-    }
-    
-    /// 尝试HTML GET请求
-    private func tryHTMLRequest(url: URL, completion: @escaping (Result<[WebDAVItem], Error>) -> Void) {
-        print("WebDAV: Attempting HTML GET request")
-        print("WebDAV: GET URL: \(url)")
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 30.0
-        
-        // 添加认证信息
-        if let credentials = credentials {
-            let loginString = "\(credentials.username):\(credentials.password)"
-            let loginData = loginString.data(using: .utf8)!
-            let base64LoginString = loginData.base64EncodedString()
-            request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
-            print("WebDAV: Added Basic authentication for user: \(credentials.username)")
-        } else {
-            print("WebDAV: No authentication credentials provided")
-        }
-        
-        print("WebDAV: Request headers: \(request.allHTTPHeaderFields ?? [:])")
-        
-        urlSession.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                print("WebDAV: HTML GET response received")
-                
-                if let error = error {
-                    print("WebDAV: HTML GET error: \(error)")
-                    completion(.failure(NetworkError.connectionFailed))
-                    return
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("WebDAV: HTML GET invalid response type")
-                    completion(.failure(NetworkError.invalidResponse))
-                    return
-                }
-                
-                print("WebDAV: HTML GET status code: \(httpResponse.statusCode)")
-                print("WebDAV: HTML GET response headers: \(httpResponse.allHeaderFields)")
-                
-                // 检查HTTP状态码
-                switch httpResponse.statusCode {
-                case 200...299:
-                    print("WebDAV: HTML GET success status: \(httpResponse.statusCode)")
-                    break
-                case 401:
-                    print("WebDAV: HTML GET unauthorized (401)")
-                    completion(.failure(NetworkError.unauthorized))
-                    return
-                case 403:
-                    print("WebDAV: HTML GET forbidden (403)")
-                    completion(.failure(NetworkError.forbidden))
-                    return
-                case 404:
-                    print("WebDAV: HTML GET not found (404)")
-                    completion(.failure(NetworkError.notFound))
-                    return
-                default:
-                    print("WebDAV: HTML GET server error: \(httpResponse.statusCode)")
-                    completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
-                    return
-                }
-                
-                guard let data = data else {
-                    print("WebDAV: HTML GET no data received")
-                    completion(.failure(NetworkError.noData))
-                    return
-                }
-                
-                print("WebDAV: HTML GET data size: \(data.count) bytes")
-                if let responseString = String(data: data, encoding: .utf8) {
-                    let preview = String(responseString.prefix(500))
-                    print("WebDAV: HTML response preview: \(preview)")
-                } else {
-                    print("WebDAV: HTML response data is not UTF-8 text")
-                }
-                
-                // 尝试解析HTML格式的目录列表
-                do {
-                    let htmlParser = HTMLDirectoryParser()
-                    let items = try htmlParser.parseDirectoryResponse(data, baseURL: url)
-                    print("WebDAV: HTML parsing succeeded, found \(items.count) items")
-                    for (index, item) in items.enumerated() {
-                        if index < 5 { // 只显示前5个项目
-                            print("WebDAV: Item \(index): \(item.name) (\(item.isDirectory ? "directory" : "file"))")
-                        }
-                    }
-                    completion(.success(items))
-                } catch {
-                    print("WebDAV: HTML parsing failed: \(error)")
-                    completion(.failure(NetworkError.parseError))
-                }
-            }
-        }.resume()
+        // 直接使用WebDAV PROPFIND请求
+        tryWebDAVRequest(url: url, completion: completion)
     }
     
     /// 尝试WebDAV PROPFIND请求
@@ -282,7 +173,9 @@ class WebDAVClient {
     func getStreamingURL(for path: String, completion: @escaping (Result<URL, Error>) -> Void) {
         let fileURL = baseURL.appendingPathComponent(path)
         print("WebDAV: Getting streaming URL for path: \(path)")
+        print("WebDAV: Base URL: \(baseURL)")
         print("WebDAV: File URL: \(fileURL)")
+        print("WebDAV: File URL components - scheme: \(fileURL.scheme ?? "nil"), host: \(fileURL.host ?? "nil"), path: \(fileURL.path)")
         
         // 如果有认证信息，需要验证文件是否存在且可访问
         if let credentials = credentials {
@@ -337,11 +230,14 @@ class WebDAVClient {
                     
                     // 构建包含认证信息的URL
                     var urlComponents = URLComponents(url: fileURL, resolvingAgainstBaseURL: false)
+                    print("WebDAV: Original URL components: \(urlComponents?.debugDescription ?? "nil")")
                     urlComponents?.user = credentials.username
                     urlComponents?.password = credentials.password
+                    print("WebDAV: URL components after adding credentials: \(urlComponents?.debugDescription ?? "nil")")
                     
                     if let authenticatedURL = urlComponents?.url {
                         print("WebDAV: Created authenticated URL: \(authenticatedURL)")
+                        print("WebDAV: Authenticated URL components - scheme: \(authenticatedURL.scheme ?? "nil"), host: \(authenticatedURL.host ?? "nil"), path: \(authenticatedURL.path)")
                         completion(.success(authenticatedURL))
                     } else {
                         print("WebDAV: Failed to create authenticated URL, using original")

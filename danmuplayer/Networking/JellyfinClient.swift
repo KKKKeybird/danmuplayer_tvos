@@ -324,12 +324,16 @@ class JellyfinClient {
         var components = URLComponents(url: serverURL.appendingPathComponent("Users/\(currentUserId)/Items"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
             URLQueryItem(name: "ParentId", value: libraryId),
-            URLQueryItem(name: "IncludeItemTypes", value: "Series,Movie"),
+            URLQueryItem(name: "IncludeItemTypes", value: "Series,Movie,Video"),
             URLQueryItem(name: "Recursive", value: "true"),
-            URLQueryItem(name: "Fields", value: "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Overview")
+            URLQueryItem(name: "Fields", value: "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Overview,Genres,Tags,SeriesName,SeasonName,IndexNumber,ParentIndexNumber"),
+            URLQueryItem(name: "SortBy", value: "SortName"),
+            URLQueryItem(name: "SortOrder", value: "Ascending"),
+            URLQueryItem(name: "Limit", value: "200") // 限制返回数量避免超时
         ]
         
         guard let url = components?.url else {
+            print("Jellyfin: Failed to create library items URL")
             completion(.failure(NetworkError.invalidURL))
             return
         }
@@ -339,24 +343,135 @@ class JellyfinClient {
         
         addAuthHeader(to: &request)
         
+        print("Jellyfin: Library items request URL: \(url)")
+        print("Jellyfin: Library items request headers: \(request.allHTTPHeaderFields ?? [:])")
+        
         urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
+                    print("Jellyfin: Library items request failed: \(error)")
                     completion(.failure(NetworkError.connectionFailed))
                     return
                 }
                 
-                guard let httpResponse = response as? HTTPURLResponse,
-                      httpResponse.statusCode == 200,
-                      let data = data else {
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Jellyfin: Library items invalid response")
                     completion(.failure(NetworkError.invalidResponse))
                     return
                 }
                 
+                print("Jellyfin: Library items response status: \(httpResponse.statusCode)")
+                print("Jellyfin: Library items response headers: \(httpResponse.allHeaderFields)")
+                
+                guard httpResponse.statusCode == 200, let data = data else {
+                    if httpResponse.statusCode == 401 {
+                        print("Jellyfin: Library items unauthorized (401)")
+                        completion(.failure(NetworkError.unauthorized))
+                    } else if httpResponse.statusCode == 404 {
+                        print("Jellyfin: Library not found (404)")
+                        completion(.failure(NetworkError.notFound))
+                    } else {
+                        print("Jellyfin: Library items error status: \(httpResponse.statusCode)")
+                        completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
+                    }
+                    return
+                }
+                
+                // 打印响应内容用于调试
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("Jellyfin: Library items response body: \(responseString)")
+                }
+                
                 do {
                     let response = try JSONDecoder().decode(JellyfinItemsResponse<JellyfinMediaItem>.self, from: data)
+                    print("Jellyfin: Successfully got \(response.items.count) library items")
+                    for (index, item) in response.items.enumerated() {
+                        print("Jellyfin: Item \(index + 1): \(item.name) (ID: \(item.id), Type: \(item.type))")
+                    }
                     completion(.success(response.items))
                 } catch {
+                    print("Jellyfin: Failed to parse library items response: \(error)")
+                    completion(.failure(NetworkError.parseError))
+                }
+            }
+        }.resume()
+    }
+    
+    /// 获取系列的季节列表
+    func getSeasons(seriesId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void) {
+        guard let currentUserId = authenticatedUserId ?? userId else {
+            print("Jellyfin: No user ID available for getSeasons")
+            completion(.failure(NetworkError.unauthorized))
+            return
+        }
+        
+        print("Jellyfin: Getting seasons for user ID: \(currentUserId), series: \(seriesId)")
+        
+        var components = URLComponents(url: serverURL.appendingPathComponent("Shows/\(seriesId)/Seasons"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [
+            URLQueryItem(name: "UserId", value: currentUserId),
+            URLQueryItem(name: "Fields", value: "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,Overview")
+        ]
+        
+        guard let url = components?.url else {
+            print("Jellyfin: Failed to create seasons URL")
+            completion(.failure(NetworkError.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        addAuthHeader(to: &request)
+        
+        print("Jellyfin: Seasons request URL: \(url)")
+        print("Jellyfin: Seasons request headers: \(request.allHTTPHeaderFields ?? [:])")
+        
+        urlSession.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Jellyfin: Seasons request failed: \(error)")
+                    completion(.failure(NetworkError.connectionFailed))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Jellyfin: Seasons invalid response")
+                    completion(.failure(NetworkError.invalidResponse))
+                    return
+                }
+                
+                print("Jellyfin: Seasons response status: \(httpResponse.statusCode)")
+                print("Jellyfin: Seasons response headers: \(httpResponse.allHeaderFields)")
+                
+                guard httpResponse.statusCode == 200, let data = data else {
+                    if httpResponse.statusCode == 401 {
+                        print("Jellyfin: Seasons unauthorized (401)")
+                        completion(.failure(NetworkError.unauthorized))
+                    } else if httpResponse.statusCode == 404 {
+                        print("Jellyfin: Series not found (404)")
+                        completion(.failure(NetworkError.notFound))
+                    } else {
+                        print("Jellyfin: Seasons error status: \(httpResponse.statusCode)")
+                        completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
+                    }
+                    return
+                }
+                
+                // 打印响应内容用于调试
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("Jellyfin: Seasons response body: \(responseString)")
+                }
+                
+                do {
+                    let response = try JSONDecoder().decode(JellyfinItemsResponse<JellyfinMediaItem>.self, from: data)
+                    print("Jellyfin: Successfully got \(response.items.count) seasons")
+                    for (index, season) in response.items.enumerated() {
+                        print("Jellyfin: Season \(index + 1): \(season.name) (ID: \(season.id))")
+                    }
+                    completion(.success(response.items))
+                } catch {
+                    print("Jellyfin: Failed to parse seasons response: \(error)")
                     completion(.failure(NetworkError.parseError))
                 }
             }
@@ -380,6 +495,7 @@ class JellyfinClient {
         ]
         
         guard let url = components?.url else {
+            print("Jellyfin: Failed to create episodes URL")
             completion(.failure(NetworkError.invalidURL))
             return
         }
@@ -389,24 +505,54 @@ class JellyfinClient {
         
         addAuthHeader(to: &request)
         
+        print("Jellyfin: Episodes request URL: \(url)")
+        print("Jellyfin: Episodes request headers: \(request.allHTTPHeaderFields ?? [:])")
+        
         urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
+                    print("Jellyfin: Episodes request failed: \(error)")
                     completion(.failure(NetworkError.connectionFailed))
                     return
                 }
                 
-                guard let httpResponse = response as? HTTPURLResponse,
-                      httpResponse.statusCode == 200,
-                      let data = data else {
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Jellyfin: Episodes invalid response")
                     completion(.failure(NetworkError.invalidResponse))
                     return
                 }
                 
+                print("Jellyfin: Episodes response status: \(httpResponse.statusCode)")
+                print("Jellyfin: Episodes response headers: \(httpResponse.allHeaderFields)")
+                
+                guard httpResponse.statusCode == 200, let data = data else {
+                    if httpResponse.statusCode == 401 {
+                        print("Jellyfin: Episodes unauthorized (401)")
+                        completion(.failure(NetworkError.unauthorized))
+                    } else if httpResponse.statusCode == 404 {
+                        print("Jellyfin: Series not found (404)")
+                        completion(.failure(NetworkError.notFound))
+                    } else {
+                        print("Jellyfin: Episodes error status: \(httpResponse.statusCode)")
+                        completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
+                    }
+                    return
+                }
+                
+                // 打印响应内容用于调试
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("Jellyfin: Episodes response body: \(responseString)")
+                }
+                
                 do {
                     let response = try JSONDecoder().decode(JellyfinItemsResponse<JellyfinEpisode>.self, from: data)
+                    print("Jellyfin: Successfully got \(response.items.count) episodes")
+                    for (index, episode) in response.items.enumerated() {
+                        print("Jellyfin: Episode \(index + 1): \(episode.name) (Season \(episode.parentIndexNumber ?? 0), Episode \(episode.indexNumber ?? 0))")
+                    }
                     completion(.success(response.items))
                 } catch {
+                    print("Jellyfin: Failed to parse episodes response: \(error)")
                     completion(.failure(NetworkError.parseError))
                 }
             }
