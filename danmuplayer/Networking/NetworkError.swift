@@ -13,6 +13,9 @@ enum NetworkError: Error {
     case parseError
     case connectionFailed
     case authenticationFailed
+    case timeout
+    case serverUnavailable
+    case networkUnavailable
     
     var localizedDescription: String {
         switch self {
@@ -33,9 +36,38 @@ enum NetworkError: Error {
         case .parseError:
             return "数据解析失败"
         case .connectionFailed:
-            return "连接失败"
+            return "无法连接到服务器，请检查网络连接和服务器地址"
         case .authenticationFailed:
             return "API身份验证失败，请检查AppId和AppSecret配置"
+        case .timeout:
+            return "请求超时，请检查网络连接"
+        case .serverUnavailable:
+            return "服务器暂时不可用，请稍后重试"
+        case .networkUnavailable:
+            return "网络不可用，请检查网络连接"
         }
+    }
+    
+    /// 根据 NSURLError 创建对应的 NetworkError
+    static func from(_ error: Error) -> NetworkError {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet:
+                return .networkUnavailable
+            case .cannotConnectToHost, .cannotFindHost:
+                return .connectionFailed
+            case .timedOut:
+                return .timeout
+            case .badServerResponse:
+                return .invalidResponse
+            case .userAuthenticationRequired:
+                return .unauthorized
+            case .badURL:
+                return .invalidURL
+            default:
+                return .connectionFailed
+            }
+        }
+        return .connectionFailed
     }
 }

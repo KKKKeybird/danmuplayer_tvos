@@ -28,7 +28,7 @@ struct MediaLibraryListView: View {
                                         .clipShape(Capsule())
                                     Spacer()
                                 }
-                                Text(library.config.baseURL)
+                                Text(library.config.serverURL)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
@@ -104,7 +104,7 @@ struct MediaLibraryListView: View {
             }
         case .jellyfin:
             if library.config.createJellyfinClient() != nil {
-                MediaLibraryHomeView(config: library.config)
+                JellyfinMediaLibraryView(config: library.config)
             } else {
                 Text("Jellyfin客户端创建失败")
                     .foregroundColor(.red)

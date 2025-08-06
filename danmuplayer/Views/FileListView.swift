@@ -56,7 +56,6 @@ struct FileListView: View {
                         viewModel.loadDirectory()
                     }
                     .buttonStyle(.bordered)
-                    .controlSize(.large)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {

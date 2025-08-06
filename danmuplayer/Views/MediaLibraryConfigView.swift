@@ -26,7 +26,7 @@ struct MediaLibraryConfigView: View {
         if let config = editingConfig {
             _serverType = State(initialValue: config.serverType)
             _name = State(initialValue: config.name)
-            _baseURL = State(initialValue: config.baseURL)
+            _baseURL = State(initialValue: config.serverURL)
             _username = State(initialValue: config.username ?? "")
             _password = State(initialValue: config.password ?? "")
         }
@@ -133,10 +133,10 @@ struct MediaLibraryConfigView: View {
         let config = MediaLibraryConfig(
             id: editingConfig?.id ?? UUID(),
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            baseURL: baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            serverURL: baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            serverType: serverType,
             username: username.isEmpty ? nil : username,
-            password: password.isEmpty ? nil : password,
-            serverType: serverType
+            password: password.isEmpty ? nil : password
         )
         
         // 保存配置
@@ -204,23 +204,30 @@ struct MediaLibraryConfigView: View {
     }
     
     private func testJellyfinConnection(url: URL) {
-        let client = JellyfinClient(baseURL: url)
+        let client = JellyfinClient(serverURL: url, username: username, password: password)
         
         Task {
-            do {
-                let authResult = try await client.authenticate(username: username, password: password)
-                await MainActor.run {
-                    isTestingConnection = false
-                    connectionTestResult = "连接成功，已验证用户：\(authResult.user.name)"
-                }
-            } catch {
-                await MainActor.run {
-                    isTestingConnection = false
-                    if let networkError = error as? NetworkError {
-                        connectionTestResult = "\(networkError.localizedDescription)"
-                    } else {
-                        connectionTestResult = "连接失败: \(error.localizedDescription)"
+            await MainActor.run {
+                isTestingConnection = true
+            }
+            
+            let success = await withCheckedContinuation { continuation in
+                client.authenticate { result in
+                    switch result {
+                    case .success(let user):
+                        continuation.resume(returning: (true, user.name))
+                    case .failure:
+                        continuation.resume(returning: (false, ""))
                     }
+                }
+            }
+            
+            await MainActor.run {
+                isTestingConnection = false
+                if success.0 {
+                    connectionTestResult = "连接成功，已验证用户：\(success.1)"
+                } else {
+                    connectionTestResult = "认证失败，请检查用户名和密码"
                 }
             }
         }

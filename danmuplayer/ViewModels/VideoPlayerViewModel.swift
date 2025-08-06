@@ -46,10 +46,6 @@ class VideoPlayerViewModel: ObservableObject {
             await setupJellyfinPlayer()
         }
     }
-            setupPlayer(with: url)
-            identifySeries(videoURL: url)
-        }
-    }
 
     /// 设置播放器
     func setupPlayer(with url: URL) {
@@ -73,24 +69,20 @@ class VideoPlayerViewModel: ObservableObject {
             return
         }
         
-        do {
-            let playbackURL = try await client.getPlaybackUrl(for: mediaItem.id)
+        guard let playbackURL = client.getPlaybackUrl(itemId: mediaItem.id) else {
             await MainActor.run {
-                self.videoURL = playbackURL
-                let playerItem = AVPlayerItem(url: playbackURL)
-                self.player = AVPlayer(playerItem: playerItem)
-                
-                // 使用Jellyfin媒体项目信息进行弹幕识别
-                self.identifySeriesFromJellyfin(mediaItem: mediaItem)
+                self.errorMessage = "无法获取播放地址"
             }
-        } catch {
-            await MainActor.run {
-                if let networkError = error as? NetworkError {
-                    self.errorMessage = networkError.localizedDescription
-                } else {
-                    self.errorMessage = "获取播放地址失败: \(error.localizedDescription)"
-                }
-            }
+            return
+        }
+        
+        await MainActor.run {
+            self.videoURL = playbackURL
+            let playerItem = AVPlayerItem(url: playbackURL)
+            self.player = AVPlayer(playerItem: playerItem)
+            
+            // 使用Jellyfin媒体项目信息进行弹幕识别
+            self.identifySeriesFromJellyfin(mediaItem: mediaItem)
         }
     }
 

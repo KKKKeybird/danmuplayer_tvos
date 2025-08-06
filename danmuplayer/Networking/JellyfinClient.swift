@@ -10,6 +10,7 @@ class JellyfinClient {
     let password: String?
     
     private var accessToken: String?
+    private let urlSession: URLSession
     
     init(serverURL: URL, apiKey: String? = nil, userId: String? = nil, 
          username: String? = nil, password: String? = nil) {
@@ -18,6 +19,12 @@ class JellyfinClient {
         self.userId = userId
         self.username = username
         self.password = password
+        
+        // 创建支持HTTP的URLSession配置
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30.0
+        config.timeoutIntervalForResource = 60.0
+        self.urlSession = URLSession(configuration: config)
     }
     
     /// 测试连接
@@ -25,25 +32,33 @@ class JellyfinClient {
         let url = serverURL.appendingPathComponent("System/Info")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10.0 // 设置10秒超时
+        
+        print("Testing connection to: \(url)")
         
         if let apiKey = apiKey {
             request.setValue("MediaBrowser Token=\"\(apiKey)\"", forHTTPHeaderField: "Authorization")
         }
         
-        URLSession.shared.dataTask(with: request) { _, response, error in
+        urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    completion(.failure(NetworkError.connectionFailed))
+                    print("Connection test failed with error: \(error)")
+                    completion(.failure(NetworkError.from(error)))
                     return
                 }
                 
                 guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Invalid response received")
                     completion(.failure(NetworkError.invalidResponse))
                     return
                 }
                 
+                print("Connection test response code: \(httpResponse.statusCode)")
+                
                 switch httpResponse.statusCode {
                 case 200...299:
+                    print("Connection test successful")
                     completion(.success(true))
                 case 401:
                     completion(.failure(NetworkError.unauthorized))
@@ -51,6 +66,8 @@ class JellyfinClient {
                     completion(.failure(NetworkError.forbidden))
                 case 404:
                     completion(.failure(NetworkError.notFound))
+                case 500...599:
+                    completion(.failure(NetworkError.serverUnavailable))
                 default:
                     completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
                 }
@@ -61,6 +78,7 @@ class JellyfinClient {
     /// 用户认证
     func authenticate(completion: @escaping (Result<JellyfinUser, Error>) -> Void) {
         guard let username = username, let password = password else {
+            print("Authentication failed: Missing username or password")
             completion(.failure(NetworkError.unauthorized))
             return
         }
@@ -69,29 +87,48 @@ class JellyfinClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("danmuplayer/1.0", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 15.0 // 认证超时设置稍长
         
-        let authData = [
+        // 使用正确的Jellyfin认证API格式
+        let authData: [String: Any] = [
             "Username": username,
             "Pw": password
         ]
         
+        print("Attempting authentication for user: \(username)")
+        print("Authentication URL: \(url)")
+        
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: authData)
         } catch {
+            print("Failed to serialize authentication data: \(error)")
             completion(.failure(error))
             return
         }
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    completion(.failure(NetworkError.connectionFailed))
+                    print("Authentication request failed: \(error)")
+                    completion(.failure(NetworkError.from(error)))
                     return
                 }
                 
-                guard let httpResponse = response as? HTTPURLResponse,
-                      httpResponse.statusCode == 200,
-                      let data = data else {
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Invalid authentication response")
+                    completion(.failure(NetworkError.invalidResponse))
+                    return
+                }
+                
+                print("Authentication response code: \(httpResponse.statusCode)")
+                
+                guard httpResponse.statusCode == 200, let data = data else {
+                    if httpResponse.statusCode == 401 {
+                        print("Authentication failed: Invalid credentials")
+                    } else {
+                        print("Authentication failed with status: \(httpResponse.statusCode)")
+                    }
                     completion(.failure(NetworkError.unauthorized))
                     return
                 }
@@ -99,8 +136,10 @@ class JellyfinClient {
                 do {
                     let authResponse = try JSONDecoder().decode(JellyfinAuthResponse.self, from: data)
                     self.accessToken = authResponse.accessToken
+                    print("Authentication successful for user: \(authResponse.user.name)")
                     completion(.success(authResponse.user))
                 } catch {
+                    print("Failed to parse authentication response: \(error)")
                     completion(.failure(NetworkError.parseError))
                 }
             }
@@ -120,7 +159,7 @@ class JellyfinClient {
         
         addAuthHeader(to: &request)
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(NetworkError.connectionFailed))

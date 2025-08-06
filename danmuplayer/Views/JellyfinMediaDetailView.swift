@@ -1,0 +1,363 @@
+/// Jellyfin媒体详情页面
+import SwiftUI
+
+/// 显示Jellyfin媒体项目的详细信息和剧集列表
+@available(tvOS 17.0, *)
+struct JellyfinMediaDetailView: View {
+    let item: JellyfinMediaItem
+    let viewModel: JellyfinMediaLibraryViewModel
+    let onPlay: (JellyfinMediaItem) -> Void
+    
+    @State private var episodes: [JellyfinEpisode] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // 标题区域
+                    headerSection
+                    
+                    // 概述
+                    if let overview = item.overview, !overview.isEmpty {
+                        overviewSection(overview)
+                    }
+                    
+                    // 剧集列表（仅电视剧显示）
+                    if item.type == "Series" {
+                        episodesSection
+                    }
+                    
+                    // 直接播放按钮（电影）
+                    if item.type == "Movie" {
+                        playButtonSection
+                    }
+                }
+                .padding(.horizontal, 40)
+                .padding(.vertical, 20)
+            }
+            .navigationTitle(item.name)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") {
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                if item.type == "Series" {
+                    loadEpisodes()
+                }
+            }
+        }
+    }
+    
+    // MARK: - 子视图
+    
+    private var headerSection: some View {
+        HStack(alignment: .top, spacing: 20) {
+            // 海报
+            AsyncImage(url: viewModel.getImageUrl(for: item, maxWidth: 300)) { image in
+                image
+                    .resizable()
+                    .aspectRatio(2/3, contentMode: .fill)
+                    .frame(width: 200, height: 300)
+                    .clipped()
+                    .cornerRadius(12)
+            } placeholder: {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(width: 200, height: 300)
+                    .overlay(
+                        Image(systemName: item.type == "Movie" ? "film" : "tv")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.secondary)
+                    )
+            }
+            
+            // 信息
+            VStack(alignment: .leading, spacing: 12) {
+                Text(item.name)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                HStack {
+                    if let year = item.productionYear {
+                        Text(String(year))
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    if let rating = item.officialRating {
+                        Text(rating)
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                if let rating = item.communityRating {
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .foregroundStyle(.yellow)
+                        Text(String(format: "%.1f", rating))
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                    }
+                }
+                
+                if let genres = item.genres, !genres.isEmpty {
+                    HStack {
+                        ForEach(genres.prefix(3), id: \.self) { genre in
+                            Text(genre)
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.purple.opacity(0.2))
+                                .foregroundStyle(.purple)
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+                
+                if let duration = item.duration {
+                    Text("时长: \(formatDuration(duration))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+            }
+            
+            Spacer()
+        }
+    }
+    
+    private func overviewSection(_ overview: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("剧情简介")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text(overview)
+                .font(.body)
+                .lineLimit(nil)
+        }
+    }
+    
+    private var episodesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("剧集")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            if isLoading {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("加载剧集中...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 20)
+            } else if let errorMessage = errorMessage {
+                VStack {
+                    Text("加载失败: \(errorMessage)")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    Button("重试") {
+                        loadEpisodes()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.vertical, 20)
+            } else if episodes.isEmpty {
+                Text("没有找到剧集")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 20)
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(episodes) { episode in
+                        EpisodeCard(
+                            episode: episode,
+                            viewModel: viewModel,
+                            onPlay: onPlay
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    private var playButtonSection: some View {
+        Button(action: {
+            onPlay(item)
+        }) {
+            HStack {
+                Image(systemName: "play.fill")
+                    .font(.title2)
+                Text("播放")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.purple)
+            .foregroundStyle(.white)
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    // MARK: - 方法
+    
+    private func loadEpisodes() {
+        isLoading = true
+        errorMessage = nil
+        
+        viewModel.getEpisodes(for: item.id) { result in
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success(let episodes):
+                    self.episodes = episodes.sorted { 
+                        (($0.parentIndexNumber ?? 0), ($0.indexNumber ?? 0)) < 
+                        (($1.parentIndexNumber ?? 0), ($1.indexNumber ?? 0))
+                    }
+                case .failure(let error):
+                    if let networkError = error as? NetworkError {
+                        self.errorMessage = networkError.localizedDescription
+                    } else {
+                        self.errorMessage = error.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+    
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
+        
+        if hours > 0 {
+            return "\(hours)小时\(minutes)分钟"
+        } else {
+            return "\(minutes)分钟"
+        }
+    }
+}
+
+/// 剧集卡片
+@available(tvOS 17.0, *)
+struct EpisodeCard: View {
+    let episode: JellyfinEpisode
+    let viewModel: JellyfinMediaLibraryViewModel
+    let onPlay: (JellyfinMediaItem) -> Void
+    
+    var body: some View {
+        Button(action: {
+            onPlay(episode)
+        }) {
+            HStack(spacing: 16) {
+                // 剧集缩略图
+                AsyncImage(url: viewModel.getImageUrl(for: episode, type: "Primary", maxWidth: 300)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(16/9, contentMode: .fill)
+                        .frame(width: 160, height: 90)
+                        .clipped()
+                        .cornerRadius(8)
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.secondary.opacity(0.3))
+                        .frame(width: 160, height: 90)
+                        .overlay(
+                            Image(systemName: "tv")
+                                .font(.title)
+                                .foregroundStyle(.secondary)
+                        )
+                }
+                
+                // 剧集信息
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        if let seasonNumber = episode.parentIndexNumber {
+                            Text("S\(seasonNumber)")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.purple)
+                        }
+                        
+                        if let episodeNumber = episode.indexNumber {
+                            Text("E\(episodeNumber)")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.purple)
+                        }
+                        
+                        Spacer()
+                        
+                        if let duration = episode.duration {
+                            Text(formatDuration(duration))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Text(episode.name)
+                        .font(.headline)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    if let overview = episode.overview, !overview.isEmpty {
+                        Text(overview)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+                    }
+                    
+                    // 观看进度
+                    if let userData = episode.userData, userData.played {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                            Text("已观看")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                    } else if let userData = episode.userData, 
+                              let percentage = userData.playedPercentage, 
+                              percentage > 0 {
+                        ProgressView(value: percentage / 100.0)
+                            .progressViewStyle(LinearProgressViewStyle())
+                        Text("\(Int(percentage))% 已观看")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                }
+                
+                Spacer()
+                
+                // 播放图标
+                Image(systemName: "play.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(.purple)
+            }
+            .padding(12)
+            .background(Color.secondary.opacity(0.1))
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        return "\(minutes)分钟"
+    }
+}

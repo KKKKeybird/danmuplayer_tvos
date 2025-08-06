@@ -88,17 +88,19 @@ class MediaLibraryViewModel: ObservableObject {
     
     /// 测试Jellyfin连接
     private func testJellyfinConnection(_ library: MediaLibrary) async -> Bool {
-        guard let jellyfinClient = library.config.createJellyfinClient(),
-              let username = library.config.username,
-              let password = library.config.password else {
+        guard let jellyfinClient = library.config.createJellyfinClient() else {
             return false
         }
         
-        do {
-            _ = try await jellyfinClient.authenticate(username: username, password: password)
-            return true
-        } catch {
-            return false
+        return await withCheckedContinuation { continuation in
+            jellyfinClient.authenticate { result in
+                switch result {
+                case .success:
+                    continuation.resume(returning: true)
+                case .failure:
+                    continuation.resume(returning: false)
+                }
+            }
         }
     }
 }

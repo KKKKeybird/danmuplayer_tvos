@@ -95,4 +95,4 @@ struct MediaLibraryConfig: Codable, Identifiable {
     var baseURL: String { serverURL }
     var isJellyfinServer: Bool { serverType == .jellyfin }
 }
-}
+

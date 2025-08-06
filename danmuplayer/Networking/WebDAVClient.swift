@@ -11,7 +11,7 @@ class WebDAVClient {
         self.credentials = credentials
     }
 
-    /// 发起PROPFIND请求获取目录文件列表
+    /// 发起请求获取目录文件列表
     /// - Parameters:
     ///   - path: 目录相对路径
     ///   - completion: 回调WebDAVItem数组或错误
@@ -25,10 +25,23 @@ class WebDAVClient {
             url = baseURL.appendingPathComponent(normalizedPath)
         }
         
+        // 首先尝试GET请求（适用于HTML目录列表）
+        tryHTMLRequest(url: url) { [weak self] result in
+            switch result {
+            case .success(let items):
+                completion(.success(items))
+            case .failure(_):
+                // 如果HTML解析失败，尝试WebDAV PROPFIND请求
+                self?.tryWebDAVRequest(url: url, completion: completion)
+            }
+        }
+    }
+    
+    /// 尝试HTML GET请求
+    private func tryHTMLRequest(url: URL, completion: @escaping (Result<[WebDAVItem], Error>) -> Void) {
         var request = URLRequest(url: url)
-        request.httpMethod = "PROPFIND"
-        request.setValue("1", forHTTPHeaderField: "Depth")
-        request.setValue("application/xml", forHTTPHeaderField: "Content-Type")
+        request.httpMethod = "GET"
+        request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 30.0
         
         // 添加认证信息
@@ -39,24 +52,10 @@ class WebDAVClient {
             request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
         }
         
-        // 设置PROPFIND请求体，包含更多属性以增强兼容性
-        let propfindBody = """
-        <?xml version="1.0" encoding="utf-8" ?>
-        <D:propfind xmlns:D="DAV:">
-            <D:prop>
-                <D:displayname/>
-                <D:getcontentlength/>
-                <D:getlastmodified/>
-                <D:creationdate/>
-                <D:resourcetype/>
-                <D:getcontenttype/>
-                <D:getetag/>
-            </D:prop>
-        </D:propfind>
-        """
-        request.httpBody = propfindBody.data(using: .utf8)
+        // 创建自定义URLSession配置以支持HTTP连接
+        let config = URLSessionConfiguration.default
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession(configuration: config).dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(NetworkError.connectionFailed))
@@ -91,11 +90,97 @@ class WebDAVClient {
                     return
                 }
                 
+                // 尝试解析HTML格式的目录列表
+                do {
+                    let htmlParser = HTMLDirectoryParser()
+                    let items = try htmlParser.parseDirectoryResponse(data, baseURL: url)
+                    completion(.success(items))
+                } catch {
+                    print("HTML parsing failed: \(error)")
+                    completion(.failure(NetworkError.parseError))
+                }
+            }
+        }.resume()
+    }
+    
+    /// 尝试WebDAV PROPFIND请求
+    private func tryWebDAVRequest(url: URL, completion: @escaping (Result<[WebDAVItem], Error>) -> Void) {
+        var request = URLRequest(url: url)
+        request.httpMethod = "PROPFIND"
+        request.setValue("1", forHTTPHeaderField: "Depth")
+        request.setValue("application/xml", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
+        
+        // 添加认证信息
+        if let credentials = credentials {
+            let loginString = "\(credentials.username):\(credentials.password)"
+            let loginData = loginString.data(using: .utf8)!
+            let base64LoginString = loginData.base64EncodedString()
+            request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
+        }
+        
+        // 设置PROPFIND请求体，包含更多属性以增强兼容性
+        let propfindBody = """
+        <?xml version="1.0" encoding="utf-8" ?>
+        <D:propfind xmlns:D="DAV:">
+            <D:prop>
+                <D:displayname/>
+                <D:getcontentlength/>
+                <D:getlastmodified/>
+                <D:creationdate/>
+                <D:resourcetype/>
+                <D:getcontenttype/>
+                <D:getetag/>
+            </D:prop>
+        </D:propfind>
+        """
+        request.httpBody = propfindBody.data(using: .utf8)
+        
+        // 创建自定义URLSession配置以支持HTTP连接
+        let config = URLSessionConfiguration.default
+        
+        URLSession(configuration: config).dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(.failure(NetworkError.connectionFailed))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(.failure(NetworkError.invalidResponse))
+                    return
+                }
+                
+                // 检查HTTP状态码
+                switch httpResponse.statusCode {
+                case 200...299:
+                    break
+                case 401:
+                    completion(.failure(NetworkError.unauthorized))
+                    return
+                case 403:
+                    completion(.failure(NetworkError.forbidden))
+                    return
+                case 404:
+                    completion(.failure(NetworkError.notFound))
+                    return
+                default:
+                    completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(.failure(NetworkError.noData))
+                    return
+                }
+                
+                // 解析WebDAV XML响应
                 do {
                     let parser = WebDAVParser()
                     let items = try parser.parseDirectoryResponse(data)
                     completion(.success(items))
                 } catch {
+                    print("WebDAV XML parsing failed: \(error)")
                     completion(.failure(NetworkError.parseError))
                 }
             }
@@ -119,7 +204,10 @@ class WebDAVClient {
             let base64LoginString = loginData.base64EncodedString()
             request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
             
-            URLSession.shared.dataTask(with: request) { _, response, error in
+            // 创建自定义URLSession配置以支持HTTP连接
+            let config = URLSessionConfiguration.default
+            
+            URLSession(configuration: config).dataTask(with: request) { _, response, error in
                 DispatchQueue.main.async {
                     if let error = error {
                         completion(.failure(NetworkError.connectionFailed))
@@ -181,7 +269,10 @@ class WebDAVClient {
             request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
         }
         
-        URLSession.shared.dataTask(with: request) { _, response, error in
+        // 创建自定义URLSession配置以支持HTTP连接
+        let config = URLSessionConfiguration.default
+        
+        URLSession(configuration: config).dataTask(with: request) { _, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(NetworkError.connectionFailed))
