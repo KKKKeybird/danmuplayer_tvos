@@ -46,7 +46,11 @@ class WebDAVParser: NSObject, XMLParserDelegate {
     // MARK: - XMLParserDelegate
     
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
-        currentElement = elementName.lowercased()
+        // 移除命名空间前缀，只保留元素名称
+        let localName = elementName.contains(":") ? String(elementName.split(separator: ":").last!) : elementName
+        currentElement = localName.lowercased()
+        
+        print("WebDAV Parser: didStartElement - elementName: '\(elementName)', localName: '\(localName)', currentElement: '\(currentElement)'")
         
         if currentElement == "response" {
             isParsingResponse = true
@@ -100,7 +104,12 @@ class WebDAVParser: NSObject, XMLParserDelegate {
     }
     
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-        if elementName.lowercased() == "response" && isParsingResponse {
+        // 移除命名空间前缀，只保留元素名称
+        let localName = elementName.contains(":") ? String(elementName.split(separator: ":").last!) : elementName
+        
+        print("WebDAV Parser: didEndElement - elementName: '\(elementName)', localName: '\(localName)'")
+        
+        if localName.lowercased() == "response" && isParsingResponse {
             // 解析完一个response元素，创建WebDAVItem
             guard !currentHref.isEmpty else { 
                 print("WebDAV Parser: Empty href, skipping item")

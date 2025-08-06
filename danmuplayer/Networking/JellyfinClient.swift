@@ -14,6 +14,7 @@ class JellyfinClient {
     private let deviceId: String
     private var sessionId: String?
     private var keepAliveTimer: Timer?
+    private var authenticatedUserId: String? // 存储认证后获取的用户ID
     
     init(serverURL: URL, apiKey: String? = nil, userId: String? = nil, 
          username: String? = nil, password: String? = nil) {
@@ -56,6 +57,7 @@ class JellyfinClient {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
         print("Testing connection to: \(url)")
+        print("Server URL: \(serverURL)")
         print("Device ID: \(deviceId)")
         print("Auth header: \(authHeaderValue)")
         
@@ -68,13 +70,41 @@ class JellyfinClient {
             request.setValue(accessToken, forHTTPHeaderField: "X-MediaBrowser-Token")
             print("Using Access Token authentication")
         } else {
-            print("No authentication token available")
+            print("No authentication token available - testing anonymous access")
         }
+        
+        print("Request headers: \(request.allHTTPHeaderFields ?? [:])")
         
         urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     print("Connection test failed with error: \(error)")
+                    print("Error details: \(error.localizedDescription)")
+                    
+                    // 检查是否是URL格式问题
+                    if let urlError = error as? URLError {
+                        print("URLError code: \(urlError.code.rawValue)")
+                        print("URLError localized description: \(urlError.localizedDescription)")
+                        
+                        switch urlError.code {
+                        case .badURL:
+                            print("Bad URL detected. Server URL: \(self.serverURL)")
+                            completion(.failure(NetworkError.invalidURL))
+                            return
+                        case .cannotConnectToHost, .cannotFindHost:
+                            print("Cannot connect to host")
+                            completion(.failure(NetworkError.connectionFailed))
+                            return
+                        case .timedOut:
+                            print("Connection timed out")
+                            completion(.failure(NetworkError.timeout))
+                            return
+                        default:
+                            completion(.failure(NetworkError.from(error)))
+                            return
+                        }
+                    }
+                    
                     completion(.failure(NetworkError.from(error)))
                     return
                 }
@@ -86,20 +116,27 @@ class JellyfinClient {
                 }
                 
                 print("Connection test response code: \(httpResponse.statusCode)")
+                print("Response headers: \(httpResponse.allHeaderFields)")
                 
                 switch httpResponse.statusCode {
                 case 200...299:
                     print("Connection test successful")
                     completion(.success(true))
                 case 401:
-                    completion(.failure(NetworkError.unauthorized))
+                    // 401对于连接测试来说是可以接受的，说明服务器可达但需要认证
+                    print("Server is reachable but requires authentication (401) - this is normal for connection test")
+                    completion(.success(true))
                 case 403:
-                    completion(.failure(NetworkError.forbidden))
+                    print("Server is reachable but access forbidden (403)")
+                    completion(.success(true)) // 服务器可达
                 case 404:
+                    print("API endpoint not found (404) - server may not be Jellyfin")
                     completion(.failure(NetworkError.notFound))
                 case 500...599:
+                    print("Server error (5xx)")
                     completion(.failure(NetworkError.serverUnavailable))
                 default:
+                    print("Unexpected status code: \(httpResponse.statusCode)")
                     completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
                 }
             }
@@ -194,7 +231,10 @@ class JellyfinClient {
                     let authResponse = try JSONDecoder().decode(JellyfinAuthResponse.self, from: data)
                     self.accessToken = authResponse.accessToken
                     self.sessionId = authResponse.sessionInfo?.id
+                    self.authenticatedUserId = authResponse.user.id // 保存认证用户的ID
                     print("Authentication successful for user: \(authResponse.user.name)")
+                    print("User ID: \(authResponse.user.id)")
+                    print("Access Token: \(authResponse.accessToken)")
                     
                     // 启动会话保持
                     self.startSessionKeepAlive()
@@ -211,35 +251,60 @@ class JellyfinClient {
     
     /// 获取媒体库列表
     func getLibraries(completion: @escaping (Result<[JellyfinLibrary], Error>) -> Void) {
-        guard let userId = userId else {
+        // 优先使用认证后获取的用户ID，否则使用初始化时的userId
+        guard let currentUserId = authenticatedUserId ?? userId else {
+            print("Jellyfin: No user ID available for getLibraries")
             completion(.failure(NetworkError.unauthorized))
             return
         }
         
-        let url = serverURL.appendingPathComponent("Users/\(userId)/Views")
+        print("Jellyfin: Getting libraries for user ID: \(currentUserId)")
+        
+        let url = serverURL.appendingPathComponent("Users/\(currentUserId)/Views")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         
         addAuthHeader(to: &request)
         
+        print("Jellyfin: Libraries request URL: \(url)")
+        print("Jellyfin: Libraries request headers: \(request.allHTTPHeaderFields ?? [:])")
+        
         urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
+                    print("Jellyfin: Libraries request failed: \(error)")
                     completion(.failure(NetworkError.connectionFailed))
                     return
                 }
                 
-                guard let httpResponse = response as? HTTPURLResponse,
-                      httpResponse.statusCode == 200,
-                      let data = data else {
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Jellyfin: Libraries invalid response")
                     completion(.failure(NetworkError.invalidResponse))
+                    return
+                }
+                
+                print("Jellyfin: Libraries response status: \(httpResponse.statusCode)")
+                
+                guard httpResponse.statusCode == 200, let data = data else {
+                    if httpResponse.statusCode == 401 {
+                        print("Jellyfin: Libraries unauthorized (401)")
+                        completion(.failure(NetworkError.unauthorized))
+                    } else {
+                        print("Jellyfin: Libraries error status: \(httpResponse.statusCode)")
+                        completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
+                    }
                     return
                 }
                 
                 do {
                     let response = try JSONDecoder().decode(JellyfinItemsResponse<JellyfinLibrary>.self, from: data)
+                    print("Jellyfin: Successfully got \(response.items.count) libraries")
                     completion(.success(response.items))
                 } catch {
+                    print("Jellyfin: Failed to parse libraries response: \(error)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("Jellyfin: Libraries response body: \(responseString)")
+                    }
                     completion(.failure(NetworkError.parseError))
                 }
             }
@@ -248,12 +313,15 @@ class JellyfinClient {
     
     /// 获取媒体库中的项目
     func getLibraryItems(libraryId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void) {
-        guard let userId = userId else {
+        guard let currentUserId = authenticatedUserId ?? userId else {
+            print("Jellyfin: No user ID available for getLibraryItems")
             completion(.failure(NetworkError.unauthorized))
             return
         }
         
-        var components = URLComponents(url: serverURL.appendingPathComponent("Users/\(userId)/Items"), resolvingAgainstBaseURL: false)
+        print("Jellyfin: Getting library items for user ID: \(currentUserId), library: \(libraryId)")
+        
+        var components = URLComponents(url: serverURL.appendingPathComponent("Users/\(currentUserId)/Items"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
             URLQueryItem(name: "ParentId", value: libraryId),
             URLQueryItem(name: "IncludeItemTypes", value: "Series,Movie"),
@@ -297,14 +365,17 @@ class JellyfinClient {
     
     /// 获取剧集列表
     func getEpisodes(seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) {
-        guard let userId = userId else {
+        guard let currentUserId = authenticatedUserId ?? userId else {
+            print("Jellyfin: No user ID available for getEpisodes")
             completion(.failure(NetworkError.unauthorized))
             return
         }
         
+        print("Jellyfin: Getting episodes for user ID: \(currentUserId), series: \(seriesId)")
+        
         var components = URLComponents(url: serverURL.appendingPathComponent("Shows/\(seriesId)/Episodes"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
-            URLQueryItem(name: "UserId", value: userId),
+            URLQueryItem(name: "UserId", value: currentUserId),
             URLQueryItem(name: "Fields", value: "Overview,PrimaryImageAspectRatio,MediaStreams")
         ]
         
@@ -344,11 +415,16 @@ class JellyfinClient {
     
     /// 获取播放URL
     func getPlaybackUrl(itemId: String) -> URL? {
-        guard let userId = userId else { return nil }
+        guard let currentUserId = authenticatedUserId ?? userId else { 
+            print("Jellyfin: No user ID available for getPlaybackUrl")
+            return nil 
+        }
+        
+        print("Jellyfin: Getting playback URL for user ID: \(currentUserId), item: \(itemId)")
         
         var components = URLComponents(url: serverURL.appendingPathComponent("Videos/\(itemId)/stream"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
-            URLQueryItem(name: "UserId", value: userId),
+            URLQueryItem(name: "UserId", value: currentUserId),
             URLQueryItem(name: "DeviceId", value: deviceId),
             URLQueryItem(name: "MediaSourceId", value: itemId),
             URLQueryItem(name: "Static", value: "true")
