@@ -61,7 +61,7 @@ struct FileListView: View {
             } else {
                 List(viewModel.items) { item in
                     if item.isDirectory {
-                        NavigationLink(destination: FileListView(viewModel: viewModel.createChildViewModel(for: item.path))) {
+                        NavigationLink(destination: FileListView(viewModel: viewModel.createChildViewModel(for: item))) {
                             HStack {
                                 Image(systemName: "folder.fill")
                                     .foregroundStyle(.blue)

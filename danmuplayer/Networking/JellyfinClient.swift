@@ -11,6 +11,7 @@ class JellyfinClient {
     
     private var accessToken: String?
     private let urlSession: URLSession
+    private let deviceId: String
     
     init(serverURL: URL, apiKey: String? = nil, userId: String? = nil, 
          username: String? = nil, password: String? = nil) {
@@ -19,6 +20,9 @@ class JellyfinClient {
         self.userId = userId
         self.username = username
         self.password = password
+        
+        // 生成唯一的设备ID
+        self.deviceId = "DanmuPlayer-tvOS-\(UUID().uuidString.prefix(8))"
         
         // 创建支持HTTP和自签名证书的URLSession配置
         let config = URLSessionConfiguration.default
@@ -89,35 +93,44 @@ class JellyfinClient {
             return
         }
         
-        let url = serverURL.appendingPathComponent("Users/AuthenticateByName")
+        // 使用标准的认证端点
+        authenticateWithEndpoint("Users/AuthenticateByName", username: username, password: password, completion: completion)
+    }
+    
+    /// 使用特定端点进行认证
+    private func authenticateWithEndpoint(_ endpoint: String, username: String, password: String, completion: @escaping (Result<JellyfinUser, Error>) -> Void) {
+        let url = serverURL.appendingPathComponent(endpoint)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("DanmuPlayer tvOS/1.0", forHTTPHeaderField: "X-Emby-Client")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("DanmuPlayer", forHTTPHeaderField: "X-Emby-Client")
         request.setValue("1.0.0", forHTTPHeaderField: "X-Emby-Client-Version")
         request.setValue("DanmuPlayer-tvOS", forHTTPHeaderField: "X-Emby-Device-Name")
-        request.setValue("tvOS-\(UUID().uuidString)", forHTTPHeaderField: "X-Emby-Device-Id")
+        request.setValue(deviceId, forHTTPHeaderField: "X-Emby-Device-Id")
         request.timeoutInterval = 15.0
         
-        // 使用正确的Jellyfin认证API格式
-        let authData: [String: Any] = [
+        // 使用正确的Jellyfin认证API格式，按照官方源码的字段顺序
+        let authRequest: [String: String] = [
             "Username": username,
-            "Password": password  // 注意：新版本Jellyfin使用"Password"而不是"Pw"
+            "Pw": password
         ]
         
         print("Attempting authentication for user: \(username)")
         print("Authentication URL: \(url)")
+        print("Device ID: \(deviceId)")
         
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: authData)
-            if let bodyString = String(data: request.httpBody!, encoding: .utf8) {
-                print("Request body: \(bodyString)")
-            }
-        } catch {
-            print("Failed to serialize authentication data: \(error)")
-            completion(.failure(error))
+        // 手动构建JSON以确保字段顺序
+        let jsonString = "{\"Username\":\"\(username)\",\"Pw\":\"\(password)\"}"
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            print("Failed to create JSON data")
+            completion(.failure(NetworkError.parseError))
             return
         }
+        request.httpBody = jsonData
+        
+        print("Request body: \(jsonString)")
+        print("Request headers: \(request.allHTTPHeaderFields ?? [:])")
         
         urlSession.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
@@ -307,7 +320,7 @@ class JellyfinClient {
         var components = URLComponents(url: serverURL.appendingPathComponent("Videos/\(itemId)/stream"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
             URLQueryItem(name: "UserId", value: userId),
-            URLQueryItem(name: "DeviceId", value: "DanmuPlayer-tvOS"),
+            URLQueryItem(name: "DeviceId", value: deviceId),
             URLQueryItem(name: "MediaSourceId", value: itemId),
             URLQueryItem(name: "Static", value: "true")
         ]

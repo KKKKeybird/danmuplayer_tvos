@@ -62,21 +62,34 @@ class XMLParserHelper {
         let cleanHref = cleanPath(href)
         let fileName = extractFileName(from: href)
         
+        print("XMLParserHelper: Validating item - href: '\(href)', clean: '\(cleanHref)', fileName: '\(fileName)', displayName: '\(displayName)'")
+        
         // 过滤掉无效项目
-        if cleanHref.isEmpty || fileName.isEmpty {
+        if cleanHref.isEmpty {
+            print("XMLParserHelper: Rejected - empty href")
             return false
         }
         
         // 过滤掉父目录引用
         if fileName == ".." || cleanHref.hasSuffix("/..") {
+            print("XMLParserHelper: Rejected - parent directory reference")
             return false
         }
         
         // 过滤掉当前目录引用
         if fileName == "." || cleanHref.hasSuffix("/.") {
+            print("XMLParserHelper: Rejected - current directory reference")
             return false
         }
         
+        // 允许根目录本身（当前请求的目录）
+        // 这种情况下fileName可能为空，但如果有displayName就使用displayName
+        if fileName.isEmpty && displayName.isEmpty {
+            print("XMLParserHelper: Rejected - both fileName and displayName are empty")
+            return false
+        }
+        
+        print("XMLParserHelper: Accepted item")
         return true
     }
     

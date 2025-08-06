@@ -19,11 +19,25 @@ class WebDAVParser: NSObject, XMLParserDelegate {
     func parseDirectoryResponse(_ data: Data) throws -> [WebDAVItem] {
         webDAVItems.removeAll()
         
+        print("WebDAV Parser: Starting XML parsing")
+        print("WebDAV Parser: Data size: \(data.count) bytes")
+        
+        if let xmlString = String(data: data, encoding: .utf8) {
+            let preview = String(xmlString.prefix(2000))
+            print("WebDAV Parser: XML preview: \(preview)")
+        }
+        
         let parser = XMLParser(data: data)
         parser.delegate = self
         
         guard parser.parse() else {
+            print("WebDAV Parser: XML parsing failed")
             throw NSError(domain: "WebDAVParser", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse XML"])
+        }
+        
+        print("WebDAV Parser: XML parsing completed, found \(webDAVItems.count) items")
+        for (index, item) in webDAVItems.enumerated() {
+            print("WebDAV Parser: Item \(index): '\(item.name)' at '\(item.path)' (dir: \(item.isDirectory))")
         }
         
         return webDAVItems
@@ -43,9 +57,11 @@ class WebDAVParser: NSObject, XMLParserDelegate {
             currentLastModified = ""
             currentResourceType = ""
             currentIsDirectory = false
+            print("WebDAV Parser: Started new response element")
         } else if (currentElement == "collection" || currentElement.contains("collection")) && isParsingResponse {
             // 当遇到collection元素时，标记为目录
             currentIsDirectory = true
+            print("WebDAV Parser: Found collection element, marking as directory")
         }
     }
     
@@ -56,19 +72,26 @@ class WebDAVParser: NSObject, XMLParserDelegate {
             switch currentElement {
             case "href":
                 currentHref += trimmedString
+                print("WebDAV Parser: Found href: '\(trimmedString)'")
             case "displayname":
                 currentDisplayName += trimmedString
+                print("WebDAV Parser: Found displayName: '\(trimmedString)'")
             case "getcontentlength":
                 currentContentLength += trimmedString
+                print("WebDAV Parser: Found contentLength: '\(trimmedString)'")
             case "getlastmodified":
                 currentLastModified += trimmedString
+                print("WebDAV Parser: Found lastModified: '\(trimmedString)'")
             case "collection":
                 currentIsDirectory = true
+                print("WebDAV Parser: Found collection in characters")
             case "resourcetype":
                 currentResourceType += trimmedString
+                print("WebDAV Parser: Found resourceType: '\(trimmedString)'")
                 // 检查resourcetype内容是否包含collection
                 if XMLParserHelper.extractResourceType(from: trimmedString) {
                     currentIsDirectory = true
+                    print("WebDAV Parser: ResourceType indicates directory")
                 }
             default:
                 break
@@ -79,7 +102,11 @@ class WebDAVParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
         if elementName.lowercased() == "response" && isParsingResponse {
             // 解析完一个response元素，创建WebDAVItem
-            guard !currentHref.isEmpty else { return }
+            guard !currentHref.isEmpty else { 
+                print("WebDAV Parser: Empty href, skipping item")
+                isParsingResponse = false
+                return 
+            }
             
             // 使用XMLParserHelper进行路径清理和验证
             let cleanedHref = XMLParserHelper.cleanPath(currentHref)
@@ -87,8 +114,11 @@ class WebDAVParser: NSObject, XMLParserDelegate {
                           XMLParserHelper.extractFileName(from: cleanedHref) : 
                           currentDisplayName
             
+            print("WebDAV Parser: Processing item - href: '\(currentHref)', cleaned: '\(cleanedHref)', name: '\(fileName)'")
+            
             // 验证是否为有效的WebDAV项目
             guard XMLParserHelper.isValidWebDAVItem(href: cleanedHref, displayName: fileName) else {
+                print("WebDAV Parser: Invalid WebDAV item, skipping: '\(cleanedHref)'")
                 isParsingResponse = false
                 return
             }
@@ -104,6 +134,8 @@ class WebDAVParser: NSObject, XMLParserDelegate {
                 currentIsDirectory = true
             }
             
+            print("WebDAV Parser: Creating item - name: '\(fileName)', path: '\(cleanedHref)', isDirectory: \(currentIsDirectory)")
+            
             let item = WebDAVItem(
                 name: fileName,
                 path: cleanedHref,
@@ -113,6 +145,7 @@ class WebDAVParser: NSObject, XMLParserDelegate {
             )
             
             webDAVItems.append(item)
+            print("WebDAV Parser: Added item, total count: \(webDAVItems.count)")
             isParsingResponse = false
         }
         

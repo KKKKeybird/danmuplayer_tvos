@@ -80,8 +80,30 @@ class FileBrowserViewModel: ObservableObject {
     }
 
     /// 创建子目录的ViewModel
-    func createChildViewModel(for path: String) -> FileBrowserViewModel {
-        return FileBrowserViewModel(client: webDAVClient, path: path)
+    func createChildViewModel(for item: WebDAVItem) -> FileBrowserViewModel {
+        // 正确构建子目录路径
+        let childPath: String
+        if currentPath == "/" {
+            // 如果当前是根目录，直接使用item的路径
+            childPath = item.path
+        } else {
+            // 否则拼接当前路径和子项路径
+            let normalizedCurrentPath = currentPath.hasSuffix("/") ? currentPath : currentPath + "/"
+            if item.path.hasPrefix("/") {
+                // 如果item.path是绝对路径，直接使用
+                childPath = item.path
+            } else {
+                // 如果是相对路径，进行拼接
+                childPath = normalizedCurrentPath + item.path
+            }
+        }
+        
+        print("FileBrowserViewModel: Creating child ViewModel")
+        print("FileBrowserViewModel: Current path: '\(currentPath)'")
+        print("FileBrowserViewModel: Item name: '\(item.name)', item path: '\(item.path)'")
+        print("FileBrowserViewModel: Child path: '\(childPath)'")
+        
+        return FileBrowserViewModel(client: webDAVClient, path: childPath)
     }
 
     /// 播放视频文件
