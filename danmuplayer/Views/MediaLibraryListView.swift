@@ -13,11 +13,21 @@ struct MediaLibraryListView: View {
         NavigationView {
             List {
                 ForEach(viewModel.mediaLibraries) { library in
-                    NavigationLink(destination: FileListView(viewModel: FileBrowserViewModel(client: library.webDAVClient))) {
+                    NavigationLink(destination: destinationView(for: library)) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(library.name)
                                     .font(.headline)
+                                HStack {
+                                    Text(library.serverTypeDisplayName)
+                                        .font(.caption2)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(library.config.serverType == .webdav ? Color.blue : Color.purple)
+                                        .foregroundColor(.white)
+                                        .clipShape(Capsule())
+                                    Spacer()
+                                }
                                 Text(library.config.baseURL)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -78,6 +88,26 @@ struct MediaLibraryListView: View {
             }
             .refreshable {
                 viewModel.testAllConnections()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func destinationView(for library: MediaLibrary) -> some View {
+        switch library.config.serverType {
+        case .webdav:
+            if let webDAVClient = library.config.createWebDAVClient() {
+                FileListView(viewModel: FileBrowserViewModel(client: webDAVClient))
+            } else {
+                Text("WebDAV客户端创建失败")
+                    .foregroundColor(.red)
+            }
+        case .jellyfin:
+            if library.config.createJellyfinClient() != nil {
+                MediaLibraryHomeView(config: library.config)
+            } else {
+                Text("Jellyfin客户端创建失败")
+                    .foregroundColor(.red)
             }
         }
     }

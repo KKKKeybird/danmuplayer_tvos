@@ -22,12 +22,30 @@ class VideoPlayerViewModel: ObservableObject {
     private let danDanAPI = DanDanPlayAPI()
     private var videoURL: URL?
     var subtitleFiles: [WebDAVItem] = []
+    
+    // Jellyfin支持
+    private var jellyfinClient: JellyfinClient?
+    private var jellyfinMediaItem: JellyfinMediaItem?
 
     init(videoURL: URL? = nil, subtitleFiles: [WebDAVItem] = []) {
         self.videoURL = videoURL
         self.subtitleFiles = subtitleFiles
 
         if let url = videoURL {
+            setupPlayer(with: url)
+            identifySeries(videoURL: url)
+        }
+    }
+    
+    /// Jellyfin媒体项目初始化器
+    init(jellyfinClient: JellyfinClient, mediaItem: JellyfinMediaItem) {
+        self.jellyfinClient = jellyfinClient
+        self.jellyfinMediaItem = mediaItem
+        
+        Task {
+            await setupJellyfinPlayer()
+        }
+    }
             setupPlayer(with: url)
             identifySeries(videoURL: url)
         }
@@ -44,6 +62,37 @@ class VideoPlayerViewModel: ObservableObject {
             loadSubtitle(subtitleFile: subtitleFile)
         }
     }
+    
+    /// 设置Jellyfin播放器
+    func setupJellyfinPlayer() async {
+        guard let client = jellyfinClient,
+              let mediaItem = jellyfinMediaItem else {
+            await MainActor.run {
+                self.errorMessage = "Jellyfin客户端或媒体项目未设置"
+            }
+            return
+        }
+        
+        do {
+            let playbackURL = try await client.getPlaybackUrl(for: mediaItem.id)
+            await MainActor.run {
+                self.videoURL = playbackURL
+                let playerItem = AVPlayerItem(url: playbackURL)
+                self.player = AVPlayer(playerItem: playerItem)
+                
+                // 使用Jellyfin媒体项目信息进行弹幕识别
+                self.identifySeriesFromJellyfin(mediaItem: mediaItem)
+            }
+        } catch {
+            await MainActor.run {
+                if let networkError = error as? NetworkError {
+                    self.errorMessage = networkError.localizedDescription
+                } else {
+                    self.errorMessage = "获取播放地址失败: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
 
     /// 根据视频URL调用番剧识别
     func identifySeries(videoURL: URL) {
@@ -51,6 +100,32 @@ class VideoPlayerViewModel: ObservableObject {
         errorMessage = nil
 
         danDanAPI.identifySeries(for: videoURL) { result in
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success(let series):
+                    self.series = series
+                    self.loadDanmaku()
+                case .failure(let error):
+                    if let networkError = error as? NetworkError {
+                        self.errorMessage = networkError.localizedDescription
+                    } else {
+                        self.errorMessage = error.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+    
+    /// 根据Jellyfin媒体项目信息进行番剧识别
+    func identifySeriesFromJellyfin(mediaItem: JellyfinMediaItem) {
+        isLoading = true
+        errorMessage = nil
+        
+        // 使用Jellyfin的媒体信息构建识别用的文件名
+        let fileName = mediaItem.name
+        
+        danDanAPI.identifySeriesByName(fileName) { result in
             Task { @MainActor in
                 self.isLoading = false
                 switch result {

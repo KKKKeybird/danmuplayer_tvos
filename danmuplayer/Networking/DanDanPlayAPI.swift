@@ -548,3 +548,20 @@ struct CommentResult: Codable {
     let p: String
     let m: String
 }
+
+extension DanDanPlayAPI {
+    /// 根据文件名直接进行番剧识别（用于Jellyfin等媒体服务器）
+    func identifySeriesByName(_ fileName: String, completion: @escaping (Result<DanDanPlaySeries, Error>) -> Void) {
+        let fileNameWithoutExtension = (fileName as NSString).deletingPathExtension
+        
+        // 先检查缓存
+        if let cachedResults = DanDanPlayCache.shared.getCachedSearchResult(for: fileNameWithoutExtension),
+           let firstResult = cachedResults.first {
+            completion(.success(firstResult))
+            return
+        }
+        
+        // 直接使用搜索API
+        fallbackToSearch(fileNameWithoutExtension: fileNameWithoutExtension, completion: completion)
+    }
+}

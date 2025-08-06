@@ -17,23 +17,10 @@ class MediaLibraryViewModel: ObservableObject {
     func refreshLibraries() {
         let configs = configManager.configs
         mediaLibraries = configs.map { config in
-            let credentials: Credentials?
-            if let username = config.username, let password = config.password {
-                credentials = Credentials(username: username, password: password)
-            } else {
-                credentials = nil
-            }
-            
-            let client = WebDAVClient(
-                baseURL: URL(string: config.baseURL)!,
-                credentials: credentials
-            )
-            
             return MediaLibrary(
                 id: config.id,
                 name: config.name,
-                config: config,
-                webDAVClient: client
+                config: config
             )
         }
     }
@@ -63,15 +50,55 @@ class MediaLibraryViewModel: ObservableObject {
         // 标记为测试中
         connectionStatus.removeValue(forKey: libraryId)
         
-        library.webDAVClient.testConnection { result in
-            Task { @MainActor in
+        Task {
+            let isConnected = await testLibraryConnection(library)
+            await MainActor.run {
+                self.connectionStatus[libraryId] = isConnected
+            }
+        }
+    }
+    
+    /// 异步测试媒体库连接
+    private func testLibraryConnection(_ library: MediaLibrary) async -> Bool {
+        switch library.config.serverType {
+        case .webdav:
+            return await testWebDAVConnection(library)
+        case .jellyfin:
+            return await testJellyfinConnection(library)
+        }
+    }
+    
+    /// 测试WebDAV连接
+    private func testWebDAVConnection(_ library: MediaLibrary) async -> Bool {
+        guard let webDAVClient = library.config.createWebDAVClient() else {
+            return false
+        }
+        
+        return await withCheckedContinuation { continuation in
+            webDAVClient.testConnection { result in
                 switch result {
                 case .success:
-                    self.connectionStatus[libraryId] = true
+                    continuation.resume(returning: true)
                 case .failure:
-                    self.connectionStatus[libraryId] = false
+                    continuation.resume(returning: false)
                 }
             }
+        }
+    }
+    
+    /// 测试Jellyfin连接
+    private func testJellyfinConnection(_ library: MediaLibrary) async -> Bool {
+        guard let jellyfinClient = library.config.createJellyfinClient(),
+              let username = library.config.username,
+              let password = library.config.password else {
+            return false
+        }
+        
+        do {
+            _ = try await jellyfinClient.authenticate(username: username, password: password)
+            return true
+        } catch {
+            return false
         }
     }
 }
@@ -80,5 +107,14 @@ struct MediaLibrary: Identifiable {
     let id: UUID
     let name: String
     let config: MediaLibraryConfig
-    let webDAVClient: WebDAVClient
+    
+    /// 获取服务器类型的显示名称
+    var serverTypeDisplayName: String {
+        switch config.serverType {
+        case .webdav:
+            return "WebDAV"
+        case .jellyfin:
+            return "Jellyfin"
+        }
+    }
 }

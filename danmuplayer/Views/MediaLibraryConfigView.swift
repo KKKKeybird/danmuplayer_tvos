@@ -7,6 +7,7 @@ struct MediaLibraryConfigView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var configManager: MediaLibraryConfigManager
     
+    @State private var serverType: MediaLibraryServerType = .webdav
     @State private var name: String = ""
     @State private var baseURL: String = ""
     @State private var username: String = ""
@@ -23,6 +24,7 @@ struct MediaLibraryConfigView: View {
         self.editingConfig = editingConfig
         
         if let config = editingConfig {
+            _serverType = State(initialValue: config.serverType)
             _name = State(initialValue: config.name)
             _baseURL = State(initialValue: config.baseURL)
             _username = State(initialValue: config.username ?? "")
@@ -33,15 +35,33 @@ struct MediaLibraryConfigView: View {
     var body: some View {
         NavigationView {
             Form {
+                Section(header: Text("服务器类型")) {
+                    Picker("服务器类型", selection: $serverType) {
+                        Text("WebDAV").tag(MediaLibraryServerType.webdav)
+                        Text("Jellyfin").tag(MediaLibraryServerType.jellyfin)
+                    }
+                    .pickerStyle(.segmented)
+                }
+                
                 Section(header: Text("基本信息")) {
                     TextField("媒体库名称", text: $name)
-                    TextField("WebDAV地址", text: $baseURL)
+                    TextField(serverType == .webdav ? "WebDAV地址" : "Jellyfin服务器地址", text: $baseURL)
                         .keyboardType(.URL)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
+                    
+                    if serverType == .webdav {
+                        Text("示例: http://192.168.1.100:8080/dav 或 https://cloud.example.com/webdav")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("示例: http://192.168.1.100:8096 或 https://jellyfin.example.com")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
-                Section(header: Text("认证信息（可选）")) {
+                Section(header: Text(serverType == .webdav ? "认证信息（可选）" : "登录信息")) {
                     TextField("用户名", text: $username)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
@@ -100,12 +120,12 @@ struct MediaLibraryConfigView: View {
         }
         
         guard !baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            showError("请输入WebDAV地址")
+            showError("请输入\(serverType == .webdav ? "WebDAV" : "Jellyfin服务器")地址")
             return
         }
         
         guard URL(string: baseURL) != nil else {
-            showError("WebDAV地址格式不正确")
+            showError("\(serverType == .webdav ? "WebDAV" : "Jellyfin服务器")地址格式不正确")
             return
         }
         
@@ -115,7 +135,8 @@ struct MediaLibraryConfigView: View {
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             baseURL: baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             username: username.isEmpty ? nil : username,
-            password: password.isEmpty ? nil : password
+            password: password.isEmpty ? nil : password,
+            serverType: serverType
         )
         
         // 保存配置
@@ -135,18 +156,26 @@ struct MediaLibraryConfigView: View {
     
     private func testConnection() {
         guard !baseURL.isEmpty else {
-            showError("请先输入WebDAV地址")
+            showError("请先输入\(serverType == .webdav ? "WebDAV" : "Jellyfin服务器")地址")
             return
         }
         
         guard let url = URL(string: baseURL) else {
-            showError("WebDAV地址格式不正确")
+            showError("\(serverType == .webdav ? "WebDAV" : "Jellyfin服务器")地址格式不正确")
             return
         }
         
         isTestingConnection = true
         connectionTestResult = nil
         
+        if serverType == .webdav {
+            testWebDAVConnection(url: url)
+        } else {
+            testJellyfinConnection(url: url)
+        }
+    }
+    
+    private func testWebDAVConnection(url: URL) {
         let credentials: Credentials?
         if !username.isEmpty && !password.isEmpty {
             credentials = Credentials(username: username, password: password)
@@ -164,6 +193,29 @@ struct MediaLibraryConfigView: View {
                 case .success:
                     connectionTestResult = "连接成功"
                 case .failure(let error):
+                    if let networkError = error as? NetworkError {
+                        connectionTestResult = "\(networkError.localizedDescription)"
+                    } else {
+                        connectionTestResult = "连接失败: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+    }
+    
+    private func testJellyfinConnection(url: URL) {
+        let client = JellyfinClient(baseURL: url)
+        
+        Task {
+            do {
+                let authResult = try await client.authenticate(username: username, password: password)
+                await MainActor.run {
+                    isTestingConnection = false
+                    connectionTestResult = "连接成功，已验证用户：\(authResult.user.name)"
+                }
+            } catch {
+                await MainActor.run {
+                    isTestingConnection = false
                     if let networkError = error as? NetworkError {
                         connectionTestResult = "\(networkError.localizedDescription)"
                     } else {
