@@ -16,6 +16,7 @@ enum NetworkError: Error {
     case timeout
     case serverUnavailable
     case networkUnavailable
+    case unknown
     
     var localizedDescription: String {
         switch self {
@@ -45,6 +46,8 @@ enum NetworkError: Error {
             return "服务器暂时不可用，请稍后重试"
         case .networkUnavailable:
             return "网络不可用，请检查网络连接"
+        case .unknown:
+            return "未知错误"
         }
     }
     

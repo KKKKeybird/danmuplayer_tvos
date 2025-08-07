@@ -27,7 +27,7 @@ class DanDanPlayCache {
     // MARK: - 搜索结果缓存
     
     /// 缓存搜索结果（2-6小时）
-    func cacheSearchResult(_ result: [DanDanPlaySeries], for query: String) {
+    func cacheSearchResult(_ result: [DanDanPlayEpisode], for query: String) {
         do {
             let cacheTime: TimeInterval = 4 * 3600  // 4小时
             let item = try CachedItem(data: result, expiryDate: Date().addingTimeInterval(cacheTime))
@@ -42,18 +42,18 @@ class DanDanPlayCache {
     }
     
     /// 获取缓存的搜索结果
-    func getCachedSearchResult(for query: String) -> [DanDanPlaySeries]? {
+    func getCachedSearchResult(for query: String) -> [DanDanPlayEpisode]? {
         let key = "search_\(query.lowercased())" as NSString
         
         // 先检查内存缓存
         if let item = cache.object(forKey: key), !item.isExpired {
-            return item.data as? [DanDanPlaySeries]
+            return item.data as? [DanDanPlayEpisode]
         }
         
         // 检查磁盘缓存
         if let item = loadFromDisk(key: String(key)), !item.isExpired {
             cache.setObject(item, forKey: key)  // 重新加载到内存
-            return item.data as? [DanDanPlaySeries]
+            return item.data as? [DanDanPlayEpisode]
         }
         
         return nil
@@ -95,33 +95,33 @@ class DanDanPlayCache {
         return nil
     }
     
-    // MARK: - 番剧信息缓存
+    // MARK: - 剧集信息缓存
     
-    /// 缓存番剧信息（长期缓存，7天）
-    func cacheSeriesInfo(_ series: DanDanPlaySeries, for fileHash: String) {
+    /// 缓存剧集信息（长期缓存，7天）
+    func cacheEpisodeInfo(_ episode: DanDanPlayEpisode, for fileHash: String) {
         do {
             let cacheTime: TimeInterval = 7 * 24 * 3600  // 7天
-            let item = try CachedItem(data: series, expiryDate: Date().addingTimeInterval(cacheTime))
-            let key = "series_\(fileHash)" as NSString
+            let item = try CachedItem(data: episode, expiryDate: Date().addingTimeInterval(cacheTime))
+            let key = "episode_\(fileHash)" as NSString
             cache.setObject(item, forKey: key)
             
             saveToDisk(item, key: String(key))
         } catch {
-            print("缓存番剧信息失败: \(error)")
+            print("缓存剧集信息失败: \(error)")
         }
     }
     
-    /// 获取缓存的番剧信息
-    func getCachedSeriesInfo(for fileHash: String) -> DanDanPlaySeries? {
-        let key = "series_\(fileHash)" as NSString
+    /// 获取缓存的剧集信息
+    func getCachedEpisodeInfo(for fileHash: String) -> DanDanPlayEpisode? {
+        let key = "episode_\(fileHash)" as NSString
         
         if let item = cache.object(forKey: key), !item.isExpired {
-            return item.data as? DanDanPlaySeries
+            return item.data as? DanDanPlayEpisode
         }
         
         if let item = loadFromDisk(key: String(key)), !item.isExpired {
             cache.setObject(item, forKey: key)
-            return item.data as? DanDanPlaySeries
+            return item.data as? DanDanPlayEpisode
         }
         
         return nil
@@ -184,7 +184,9 @@ class DanDanPlayCache {
         }
     }
     
-    /// 获取缓存大小
+    // MARK: - 字幕缓存管理
+    
+    /// 获取弹幕数据缓存大小
     func getCacheSize() -> Int64 {
         var totalSize: Int64 = 0
         do {
@@ -198,6 +200,35 @@ class DanDanPlayCache {
         }
         return totalSize
     }
+    
+    /// 清理指定剧集的相关缓存（包括弹幕和字幕）
+    func clearEpisodeCache(episodeId: Int, episodeNumber: Int? = nil) {
+        // 清理弹幕缓存
+        let danmakuKey = "danmaku_\(episodeId)" as NSString
+        cache.removeObject(forKey: danmakuKey)
+        
+        let danmakuFileURL = cacheDirectory.appendingPathComponent("\(danmakuKey).cache")
+        try? fileManager.removeItem(at: danmakuFileURL)
+        
+        // 清理字幕缓存
+        DanmakuToSubtitleConverter.clearCachedSubtitles(episodeId: episodeId, episodeNumber: episodeNumber)
+        
+        print("已清理剧集 \(episodeId) 的所有缓存")
+    }
+    
+    /// 获取总缓存大小（包括字幕缓存）
+    func getTotalCacheSize() -> Int64 {
+        let danmakuCacheSize = getCacheSize()
+        let subtitleCacheSize = DanmakuToSubtitleConverter.getSubtitleCacheSize()
+        return danmakuCacheSize + subtitleCacheSize
+    }
+    
+    /// 清理所有缓存（包括字幕缓存）
+    func clearAllCacheIncludingSubtitles() {
+        clearAllCache()
+        DanmakuToSubtitleConverter.clearAllCachedSubtitles()
+        print("已清理所有弹幕和字幕缓存")
+    }
 }
 
 // MARK: - 缓存项
@@ -205,15 +236,15 @@ class DanDanPlayCache {
 /// 缓存项，包含数据和过期时间
 class CachedItem: NSObject, Codable {
     enum CodableData: Codable {
-        case seriesArray([DanDanPlaySeries])
-        case singleSeries(DanDanPlaySeries)
+        case episodeArray([DanDanPlayEpisode])
+        case singleEpisode(DanDanPlayEpisode)
         case data(Data)
         
         init(from data: Any) throws {
-            if let seriesArray = data as? [DanDanPlaySeries] {
-                self = .seriesArray(seriesArray)
-            } else if let series = data as? DanDanPlaySeries {
-                self = .singleSeries(series)
+            if let episodeArray = data as? [DanDanPlayEpisode] {
+                self = .episodeArray(episodeArray)
+            } else if let episode = data as? DanDanPlayEpisode {
+                self = .singleEpisode(episode)
             } else if let rawData = data as? Data {
                 self = .data(rawData)
             } else {
@@ -225,10 +256,10 @@ class CachedItem: NSObject, Codable {
         
         var value: Any {
             switch self {
-            case .seriesArray(let array):
+            case .episodeArray(let array):
                 return array
-            case .singleSeries(let series):
-                return series
+            case .singleEpisode(let episode):
+                return episode
             case .data(let data):
                 return data
             }

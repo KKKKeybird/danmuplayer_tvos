@@ -53,6 +53,11 @@ class VideoPlayerViewModel: ObservableObject {
         }
     }
     
+    /// 无参构造函数 - 用于错误情况
+    convenience init() {
+        self.init(videoURL: nil, subtitleFiles: [])
+    }
+    
     /// Jellyfin媒体项目初始化器
     init(jellyfinClient: JellyfinClient, mediaItem: JellyfinMediaItem) {
         self.jellyfinClient = jellyfinClient

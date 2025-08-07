@@ -152,11 +152,6 @@ class WebDAVClient {
                     let parser = WebDAVParser()
                     let items = try parser.parseDirectoryResponse(data)
                     print("WebDAV: PROPFIND XML parsing succeeded, found \(items.count) items")
-                    for (index, item) in items.enumerated() {
-                        if index < 5 { // 只显示前5个项目
-                            print("WebDAV: PROPFIND Item \(index): \(item.name) (\(item.isDirectory ? "directory" : "file"))")
-                        }
-                    }
                     completion(.success(items))
                 } catch {
                     print("WebDAV: PROPFIND XML parsing failed: \(error)")

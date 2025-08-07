@@ -26,7 +26,7 @@ class VLCSubtitleTrackManager {
     }
     
     /// 安全地添加弹幕字幕轨道
-    func addDanmakuTrack(from danmakuData: Data, format: SubtitleFormat = .ass) -> Bool {
+    func addDanmakuTrack(from danmakuData: Data, episodeId: Int, format: SubtitleFormat = .ass, episodeNumber: Int? = nil) -> Bool {
         guard let player = player else { return false }
         
         // 先记录当前的字幕状态
@@ -39,45 +39,65 @@ class VLCSubtitleTrackManager {
             return false
         }
         
-        // 创建临时弹幕字幕文件
-        let tempDir = FileManager.default.temporaryDirectory
-        let subtitleFileName = "danmaku_\(UUID().uuidString).\(format.fileExtension)"
-        let subtitleURL = tempDir.appendingPathComponent(subtitleFileName)
+        // 优先使用缓存的字幕文件
+        var subtitleURL: URL?
         
-        do {
-            // 转换弹幕为字幕格式
-            let danmakuComments = comments.map { parsedComment in
-                DanmakuComment(
-                    time: parsedComment.time,
-                    mode: parsedComment.mode,
-                    fontSize: 25,
-                    colorValue: colorToInt(parsedComment.color),
-                    timestamp: Date().timeIntervalSince1970,
-                    content: parsedComment.content
-                )
-            }
-            
-            try DanmakuToSubtitleConverter.saveDanmakuAsSubtitle(danmakuComments, format: format, to: subtitleURL)
-            
-            // 添加为额外的字幕轨道（不替换现有字幕）
-            let result = player.addPlaybackSlave(subtitleURL, type: .subtitle, enforce: false)
-            
-            if result == 0 {
-                print("弹幕轨道添加成功，共 \(comments.count) 条弹幕")
-                
-                // 延迟获取新添加的轨道索引
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.findAndActivateDanmakuTrack()
+        // 1. 先检查是否有缓存的字幕文件
+        if let cachedURL = DanmakuToSubtitleConverter.getCachedSubtitleURL(episodeId: episodeId, episodeNumber: episodeNumber, format: format) {
+            subtitleURL = cachedURL
+            print("使用缓存的字幕文件: \(cachedURL.path)")
+        } else {
+            // 2. 没有缓存，生成并缓存字幕文件
+            do {
+                let danmakuComments = comments.map { parsedComment in
+                    DanmakuComment(
+                        time: parsedComment.time,
+                        mode: parsedComment.mode,
+                        fontSize: 25,
+                        colorValue: colorToInt(parsedComment.color),
+                        timestamp: Date().timeIntervalSince1970,
+                        content: parsedComment.content
+                    )
                 }
                 
-                return true
-            } else {
-                print("弹幕轨道添加失败，错误代码: \(result)")
+                subtitleURL = try DanmakuToSubtitleConverter.cacheDanmakuAsSubtitle(
+                    danmakuComments, 
+                    format: format, 
+                    episodeId: episodeId, 
+                    episodeNumber: episodeNumber
+                )
+                print("生成并缓存新的字幕文件: \(subtitleURL?.path ?? "unknown")")
+            } catch {
+                print("生成字幕文件失败: \(error)")
                 return false
             }
+        }
+        
+        // 3. 使用字幕文件添加到 VLC
+        guard let finalURL = subtitleURL else {
+            print("无法获取字幕文件URL")
+            return false
+        }
+        // 3. 使用字幕文件添加到 VLC
+        guard let finalURL = subtitleURL else {
+            print("无法获取字幕文件URL")
+            return false
+        }
+        
+        // 添加为额外的字幕轨道（不替换现有字幕）
+        let result = player.addPlaybackSlave(finalURL, type: .subtitle, enforce: false)
+        
+        if result == 0 {
+            print("弹幕轨道添加成功，共 \(comments.count) 条弹幕")
             
-        } catch {
-            print("创建弹幕字幕文件失败: \(error)")
+            // 延迟获取新添加的轨道索引
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.findAndActivateDanmakuTrack()
+            }
+            
+            return true
+        } else {
+            print("弹幕轨道添加失败，错误代码: \(result)")
             return false
         }
     }
@@ -100,11 +120,24 @@ class VLCSubtitleTrackManager {
         danmakuTrackIndex = nil
     }
     
+    /// 从缓存的弹幕数据添加字幕轨道（便捷方法）
+    func addDanmakuTrackFromCache(episodeId: Int, format: SubtitleFormat = .ass, episodeNumber: Int? = nil) -> Bool {
+        // 先尝试获取缓存的弹幕数据
+        if let cachedData = DanDanPlayCache.shared.getCachedDanmaku(for: episodeId) {
+            return addDanmakuTrack(from: cachedData, episodeId: episodeId, format: format, episodeNumber: episodeNumber)
+        } else {
+            print("未找到剧集 \(episodeId) 的缓存弹幕数据")
+            return false
+        }
+    }
+    
     /// 切换弹幕显示状态
-    func toggleDanmaku(_ enabled: Bool, danmakuData: Data? = nil) {
+    func toggleDanmaku(_ enabled: Bool, danmakuData: Data? = nil, episodeId: Int? = nil, episodeNumber: Int? = nil) {
         if enabled {
-            if let data = danmakuData {
-                _ = addDanmakuTrack(from: data)
+            if let data = danmakuData, let epId = episodeId {
+                _ = addDanmakuTrack(from: data, episodeId: epId, episodeNumber: episodeNumber)
+            } else {
+                print("启用弹幕需要提供弹幕数据和剧集ID")
             }
         } else {
             removeDanmakuTrack()
@@ -163,6 +196,14 @@ class VLCSubtitleTrackManager {
         }
         
         return info
+    }
+    
+    /// 清理资源（在播放结束或切换视频时调用）
+    func cleanup() {
+        // 重置状态
+        danmakuTrackIndex = nil
+        originalSubtitleTrackIndex = nil
+        print("VLCSubtitleTrackManager 已清理资源")
     }
     
     // MARK: - Private Helper

@@ -1,5 +1,6 @@
 /// Jellyfin API客户端
 import Foundation
+import CryptoKit
 
 /// Jellyfin服务器API客户端
 class JellyfinClient {
@@ -260,6 +261,8 @@ class JellyfinClient {
         
         print("Jellyfin: Getting libraries for user ID: \(currentUserId)")
         
+        // 不缓存媒体库列表，直接从服务器获取最新数据
+        
         let url = serverURL.appendingPathComponent("Users/\(currentUserId)/Views")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -299,6 +302,9 @@ class JellyfinClient {
                 do {
                     let response = try JSONDecoder().decode(JellyfinItemsResponse<JellyfinLibrary>.self, from: data)
                     print("Jellyfin: Successfully got \(response.items.count) libraries")
+                    
+                    // 不再缓存媒体库列表
+                    
                     completion(.success(response.items))
                 } catch {
                     print("Jellyfin: Failed to parse libraries response: \(error)")
@@ -320,6 +326,12 @@ class JellyfinClient {
         }
         
         print("Jellyfin: Getting library items for user ID: \(currentUserId), library: \(libraryId)")
+        
+        // 先检查缓存
+        if let cachedItems = JellyfinCache.shared.getCachedLibraryItems(for: libraryId) {
+            completion(.success(cachedItems))
+            return
+        }
         
         var components = URLComponents(url: serverURL.appendingPathComponent("Users/\(currentUserId)/Items"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
@@ -388,6 +400,10 @@ class JellyfinClient {
                     for (index, item) in response.items.enumerated() {
                         print("Jellyfin: Item \(index + 1): \(item.name) (ID: \(item.id), Type: \(item.type))")
                     }
+                    
+                    // 缓存媒体库项目
+                    JellyfinCache.shared.cacheLibraryItems(response.items, for: libraryId)
+                    
                     completion(.success(response.items))
                 } catch {
                     print("Jellyfin: Failed to parse library items response: \(error)")
@@ -406,6 +422,12 @@ class JellyfinClient {
         }
         
         print("Jellyfin: Getting seasons for user ID: \(currentUserId), series: \(seriesId)")
+        
+        // 先检查缓存
+        if let cachedSeasons = JellyfinCache.shared.getCachedSeasons(for: seriesId) {
+            completion(.success(cachedSeasons))
+            return
+        }
         
         var components = URLComponents(url: serverURL.appendingPathComponent("Shows/\(seriesId)/Seasons"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
@@ -469,6 +491,10 @@ class JellyfinClient {
                     for (index, season) in response.items.enumerated() {
                         print("Jellyfin: Season \(index + 1): \(season.name) (ID: \(season.id))")
                     }
+                    
+                    // 缓存季节列表
+                    JellyfinCache.shared.cacheSeasons(response.items, for: seriesId)
+                    
                     completion(.success(response.items))
                 } catch {
                     print("Jellyfin: Failed to parse seasons response: \(error)")
@@ -487,6 +513,8 @@ class JellyfinClient {
         }
         
         print("Jellyfin: Getting episodes for user ID: \(currentUserId), series: \(seriesId)")
+        
+        // 不缓存剧集列表，直接从服务器获取最新数据
         
         var components = URLComponents(url: serverURL.appendingPathComponent("Shows/\(seriesId)/Episodes"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
@@ -550,6 +578,10 @@ class JellyfinClient {
                     for (index, episode) in response.items.enumerated() {
                         print("Jellyfin: Episode \(index + 1): \(episode.name) (Season \(episode.parentIndexNumber ?? 0), Episode \(episode.indexNumber ?? 0))")
                     }
+                    
+                    // 批量缓存剧集元数据（用于快速访问详情）
+                    JellyfinCache.shared.batchCacheEpisodesMetadata(response.items)
+                    
                     completion(.success(response.items))
                 } catch {
                     print("Jellyfin: Failed to parse episodes response: \(error)")
@@ -661,6 +693,69 @@ class JellyfinClient {
     /// 析构函数，清理资源
     deinit {
         stopSessionKeepAlive()
+    }
+    
+    // MARK: - 缓存管理
+    
+    /// 强制刷新媒体库列表（跳过缓存）
+    func refreshLibraries(completion: @escaping (Result<[JellyfinLibrary], Error>) -> Void) {
+        // 媒体库列表不再缓存，直接重新加载即可
+        getLibraries(completion: completion)
+    }
+    
+    /// 获取合并后的媒体库项目（基于用户选择）
+    func getMergedLibraryItems(serverId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void) {
+        // 首先获取所有媒体库
+        getLibraries { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let allLibraries):
+                // 使用配置管理器获取合并后的项目
+                JellyfinLibraryConfigManager.shared.getMergedLibraryItems(
+                    from: self,
+                    serverId: serverId,
+                    availableLibraries: allLibraries,
+                    completion: completion
+                )
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    /// 强制刷新媒体库项目（跳过缓存）
+    func refreshLibraryItems(libraryId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void) {
+        // 清除相关缓存
+        JellyfinCache.shared.clearLibraryItemsCache(for: libraryId)
+        // 重新加载
+        getLibraryItems(libraryId: libraryId, completion: completion)
+    }
+    
+    /// 强制刷新剧集列表（跳过缓存）
+    func refreshEpisodes(seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) {
+        // 剧集列表不缓存，直接重新加载即可
+        // 可选择性地清除该系列相关的剧集元数据缓存
+        JellyfinCache.shared.clearSeriesEpisodesMetadataCache(for: seriesId)
+        getEpisodes(seriesId: seriesId, completion: completion)
+    }
+    
+    /// 获取单个剧集的详细信息（优先使用缓存）
+    func getEpisodeDetails(episodeId: String, completion: @escaping (Result<JellyfinEpisode, Error>) -> Void) {
+        // 先检查元数据缓存
+        if let cachedEpisode = JellyfinCache.shared.getCachedEpisodeMetadata(for: episodeId) {
+            completion(.success(cachedEpisode))
+            return
+        }
+        
+        // 如果没有缓存，从服务器获取（这里需要实现单个剧集获取的API调用）
+        // 暂时返回错误，提示需要实现
+        completion(.failure(NetworkError.notFound))
+    }
+    
+    /// 从缓存中快速获取剧集元数据（同步方法）
+    func getCachedEpisodeMetadata(episodeId: String) -> JellyfinEpisode? {
+        return JellyfinCache.shared.getCachedEpisodeMetadata(for: episodeId)
     }
 }
 

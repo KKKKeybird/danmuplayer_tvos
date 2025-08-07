@@ -125,8 +125,13 @@ class WebDAVParser: NSObject, XMLParserDelegate {
             
             print("WebDAV Parser: Processing item - href: '\(currentHref)', cleaned: '\(cleanedHref)', name: '\(fileName)'")
             
-            // 验证是否为有效的WebDAV项目
-            guard XMLParserHelper.isValidWebDAVItem(href: cleanedHref, displayName: fileName) else {
+            // 最终检查resourceType是否标记为目录
+            if !currentIsDirectory && XMLParserHelper.extractResourceType(from: currentResourceType) {
+                currentIsDirectory = true
+            }
+            
+            // 验证是否为有效的WebDAV项目（只保留目录和视频文件）
+            guard XMLParserHelper.isValidWebDAVItem(href: cleanedHref, displayName: fileName, isDirectory: currentIsDirectory) else {
                 print("WebDAV Parser: Invalid WebDAV item, skipping: '\(cleanedHref)'")
                 isParsingResponse = false
                 return
@@ -137,11 +142,6 @@ class WebDAVParser: NSObject, XMLParserDelegate {
             
             // 解析修改日期
             let modifiedDate = XMLParserHelper.parseWebDAVDate(currentLastModified)
-            
-            // 最终检查resourceType是否标记为目录
-            if !currentIsDirectory && XMLParserHelper.extractResourceType(from: currentResourceType) {
-                currentIsDirectory = true
-            }
             
             print("WebDAV Parser: Creating item - name: '\(fileName)', path: '\(cleanedHref)', isDirectory: \(currentIsDirectory)")
             

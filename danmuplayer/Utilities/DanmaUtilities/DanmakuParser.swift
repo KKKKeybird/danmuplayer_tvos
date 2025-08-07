@@ -13,51 +13,13 @@ struct DanmakuParser {
         let content: String    // 弹幕内容
     }
     
-    /// 从弹弹Play API响应解析弹幕数据 - 自动检测XML或JSON格式
-    /// - Parameter data: API返回的数据
+    /// 从弹弹Play API响应解析弹幕数据（JSON格式）
+    /// - Parameter data: API返回的JSON数据
     /// - Returns: 解析后的弹幕数组
     static func parseComments(from data: Data) -> [ParsedComment] {
-        // 先尝试解析XML格式
-        if let xmlComments = parseXMLComments(from: data), !xmlComments.isEmpty {
-            return xmlComments
-        }
-        
-        // 如果XML解析失败，尝试JSON格式
         return parseJSONComments(from: data)
     }
-    
-    /// 解析XML格式弹幕数据（标准弹幕XML格式）
-    /// XML格式示例：
-    /// <i>
-    ///   <d p="23.826000,1,16777215,1608294084,0">弹幕内容</d>
-    ///   ...
-    /// </i>
-    private static func parseXMLComments(from data: Data) -> [ParsedComment]? {
-        guard let xmlString = String(data: data, encoding: .utf8) else {
-            print("无法将数据转换为UTF-8字符串")
-            return nil
-        }
-        
-        // 检查是否是XML格式
-        guard xmlString.contains("<d p=") || xmlString.contains("<i>") else {
-            return nil
-        }
-        
-        var comments: [ParsedComment] = []
-        let parser = DanmakuXMLParser { comment in
-            comments.append(comment)
-        }
-        
-        if parser.parse(data: data) {
-            print("成功解析XML弹幕数据，共 \(comments.count) 条")
-            return comments
-        } else {
-            print("XML弹幕解析失败")
-            return nil
-        }
-    }
-    
-    /// 解析JSON格式弹幕数据（备用格式）
+    /// 解析JSON格式弹幕数据
     private static func parseJSONComments(from data: Data) -> [ParsedComment] {
         guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: data) else {
             print("无法解析弹幕JSON数据")
@@ -142,55 +104,5 @@ enum DanmakuMode: Int, CaseIterable {
         case .top:
             return "顶部弹幕"
         }
-    }
-}
-
-// MARK: - XML Parser for Danmaku
-
-/// XML弹幕解析器
-private class DanmakuXMLParser: NSObject, XMLParserDelegate {
-    private let onCommentParsed: (DanmakuParser.ParsedComment) -> Void
-    private var currentElement: String = ""
-    private var currentContent: String = ""
-    private var currentP: String = ""
-    
-    init(onCommentParsed: @escaping (DanmakuParser.ParsedComment) -> Void) {
-        self.onCommentParsed = onCommentParsed
-        super.init()
-    }
-    
-    func parse(data: Data) -> Bool {
-        let parser = XMLParser(data: data)
-        parser.delegate = self
-        return parser.parse()
-    }
-    
-    // MARK: - XMLParserDelegate
-    
-    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
-        currentElement = elementName
-        currentContent = ""
-        
-        if elementName == "d", let p = attributeDict["p"] {
-            currentP = p
-        }
-    }
-    
-    func parser(_ parser: XMLParser, foundCharacters string: String) {
-        if currentElement == "d" {
-            currentContent += string
-        }
-    }
-    
-    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-        if elementName == "d" && !currentP.isEmpty && !currentContent.isEmpty {
-            if let comment = DanmakuParser.parseComment(p: currentP, m: currentContent.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                onCommentParsed(comment)
-            }
-        }
-        
-        currentElement = ""
-        currentContent = ""
-        currentP = ""
     }
 }

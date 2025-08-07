@@ -158,5 +158,21 @@ class FileBrowserViewModel: ObservableObject {
 
     enum SortOption {
         case name, date, size
+        
+        var displayName: String {
+            switch self {
+            case .name: return "名称"
+            case .date: return "日期"
+            case .size: return "大小"
+            }
+        }
+        
+        var systemImage: String {
+            switch self {
+            case .name: return "textformat.abc"
+            case .date: return "calendar"
+            case .size: return "scale.3d"
+            }
+        }
     }
 }

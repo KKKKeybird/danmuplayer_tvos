@@ -27,16 +27,26 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         case episodes
     }
     
-    private let jellyfinClient: JellyfinClient
+    private let client: JellyfinClient
     private let config: MediaLibraryConfig
+    private var serverId: String {
+        return config.serverURL
+    }
+    
+    @StateObject private var configManager = JellyfinLibraryConfigManager.shared
+    
+    // 暴露 JellyfinClient 用于设置界面
+    var jellyfinClient: JellyfinClient {
+        return client
+    }
     
     init(config: MediaLibraryConfig) {
         self.config = config
         if let client = config.createJellyfinClient() {
-            self.jellyfinClient = client
+            self.client = client
         } else {
             // 如果无法通过config创建，使用基本构造函数
-            self.jellyfinClient = JellyfinClient(
+            self.client = JellyfinClient(
                 serverURL: URL(string: config.serverURL)!,
                 username: config.username,
                 password: config.password
@@ -55,7 +65,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         errorMessage = nil
         
         // 首先测试服务器连接
-        jellyfinClient.testConnection { testResult in
+        client.testConnection { testResult in
             Task { @MainActor in
                 switch testResult {
                 case .success:
@@ -75,7 +85,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
     
     /// 执行认证
     private func performAuthentication() {
-        jellyfinClient.authenticate { result in
+        client.authenticate { result in
             Task { @MainActor in
                 self.isLoading = false
                 switch result {
@@ -98,7 +108,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        jellyfinClient.getLibraries { result in
+        client.getLibraries { result in
             Task { @MainActor in
                 self.isLoading = false
                 switch result {
@@ -108,10 +118,9 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
                         library.collectionType == "movies" || library.collectionType == "tvshows" || library.collectionType == nil
                     }
                     
-                    // 如果只有一个媒体库，自动选择它
-                    if self.libraries.count == 1 {
-                        self.selectLibrary(self.libraries[0])
-                    }
+                    // 直接加载合并后的媒体内容，不再显示媒体库选择界面
+                    self.loadMergedMediaItems()
+                    
                 case .failure(let error):
                     if let networkError = error as? NetworkError {
                         self.errorMessage = networkError.localizedDescription
@@ -121,6 +130,34 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
                 }
             }
         }
+    }
+    
+    /// 加载合并后的媒体内容
+    private func loadMergedMediaItems() {
+        isLoading = true
+        errorMessage = nil
+        currentLevel = .mediaItems
+        
+        client.getMergedLibraryItems(serverId: serverId) { result in
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success(let items):
+                    self.mediaItems = items
+                case .failure(let error):
+                    if let networkError = error as? NetworkError {
+                        self.errorMessage = "加载媒体内容失败: \(networkError.localizedDescription)"
+                    } else {
+                        self.errorMessage = "加载媒体内容失败: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+    }
+    
+    /// 显示媒体库选择界面
+    func showLibrarySelection() {
+        showingLibrarySelection = true
     }
     
     /// 选择媒体库并加载内容
@@ -176,7 +213,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         errorMessage = nil
         mediaItems = []
         
-        jellyfinClient.getLibraryItems(libraryId: library.id) { result in
+        client.getLibraryItems(libraryId: library.id) { result in
             Task { @MainActor in
                 self.isLoading = false
                 switch result {
@@ -201,7 +238,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         errorMessage = nil
         seasons = []
         
-        jellyfinClient.getSeasons(seriesId: seriesId) { result in
+        client.getSeasons(seriesId: seriesId) { result in
             Task { @MainActor in
                 self.isLoading = false
                 switch result {
@@ -226,7 +263,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         errorMessage = nil
         episodes = []
         
-        jellyfinClient.getEpisodes(seriesId: seriesId) { result in
+        client.getEpisodes(seriesId: seriesId) { result in
             Task { @MainActor in
                 self.isLoading = false
                 switch result {
@@ -264,9 +301,8 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         case .libraries:
             loadLibraries()
         case .mediaItems:
-            if let selectedLibrary = selectedLibrary {
-                loadMediaItems(from: selectedLibrary)
-            }
+            // 刷新合并后的媒体内容
+            loadMergedMediaItems()
         case .seasons:
             if let selectedSeries = selectedSeries {
                 loadSeasons(for: selectedSeries.id)
@@ -280,19 +316,33 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
     
     /// 获取媒体项目的海报图片URL
     func getImageUrl(for item: JellyfinMediaItem, type: String = "Primary", maxWidth: Int = 600) -> URL? {
-        return jellyfinClient.getImageUrl(itemId: item.id, type: type, maxWidth: maxWidth)
+        return client.getImageUrl(itemId: item.id, type: type, maxWidth: maxWidth)
     }
     
-    /// 创建视频播放器视图模型
+    /// 创建统一的视频播放器视图模型
     func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel {
-        let viewModel = VideoPlayerViewModel(jellyfinClient: jellyfinClient, mediaItem: item)
+        // 使用统一播放器工厂创建Jellyfin播放器
+        guard let playbackURL = client.getPlaybackUrl(itemId: item.id) else {
+            // 如果无法获取播放URL，返回基本的ViewModel并设置错误
+            let viewModel = VideoPlayerViewModel()
+            viewModel.errorMessage = "无法获取播放地址"
+            return viewModel
+        }
+        
+        // 使用统一的数据源适配器
+        let dataSource = JellyfinDataSource(
+            mediaItem: item,
+            videoURL: playbackURL
+        )
+        
+        let viewModel = VideoPlayerViewModel(dataSource: dataSource)
         // dismiss 将在视图中设置
         return viewModel
     }
     
     /// 获取剧集列表
     func getEpisodes(for seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) {
-        jellyfinClient.getEpisodes(seriesId: seriesId, completion: completion)
+        client.getEpisodes(seriesId: seriesId, completion: completion)
     }
     
     /// 诊断连接问题
@@ -327,7 +377,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         // 1. 基本URL连接测试
         await addTestResult("基本URL连接测试") {
             return try await withCheckedThrowingContinuation { continuation in
-                self.jellyfinClient.testConnection { result in
+                self.client.testConnection { result in
                     switch result {
                     case .success(let isConnected):
                         if isConnected {
@@ -399,7 +449,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
            !username.isEmpty && !password.isEmpty {
             await addTestResult("用户认证测试") {
                 return try await withCheckedThrowingContinuation { continuation in
-                    self.jellyfinClient.authenticate { result in
+                    self.client.authenticate { result in
                         switch result {
                         case .success(let user):
                             continuation.resume(returning: "认证成功: \(user.name)")

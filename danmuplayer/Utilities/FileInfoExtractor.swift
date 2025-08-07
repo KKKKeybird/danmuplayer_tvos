@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import AVFoundation
 
 /// 文件信息提取工具，用于DanDanPlay API的文件识别
 struct FileInfoExtractor {
@@ -9,6 +10,7 @@ struct FileInfoExtractor {
         let fileName: String
         let fileHash: String
         let fileSize: Int64
+        let videoDuration: Double // 视频时长（秒）
     }
     
     /// 计算文件的MD5哈希值
@@ -42,24 +44,42 @@ struct FileInfoExtractor {
         }
     }
     
+    /// 获取视频时长
+    static func getVideoDuration(for url: URL) -> Double? {
+        let asset = AVAsset(url: url)
+        let duration = asset.duration
+        
+        guard duration.isValid && !duration.isIndefinite else {
+            return nil
+        }
+        
+        return CMTimeGetSeconds(duration)
+    }
+    
     /// 提取文件的完整匹配信息
     static func extractFileInfo(from url: URL) -> FileMatchInfo? {
         let fileName = url.lastPathComponent
         
         guard let fileHash = calculateFileHash(for: url),
               let fileSize = getFileSize(for: url) else {
-            // 如果无法计算hash或大小，至少返回文件名信息
+            // 如果无法计算hash或大小，至少返回文件名和视频时长信息
+            let videoDuration = getVideoDuration(for: url) ?? 0
             return FileMatchInfo(
                 fileName: fileName,
                 fileHash: "",
-                fileSize: 0
+                fileSize: 0,
+                videoDuration: videoDuration
             )
         }
+        
+        // 获取视频时长
+        let videoDuration = getVideoDuration(for: url) ?? 0
         
         return FileMatchInfo(
             fileName: fileName,
             fileHash: fileHash,
-            fileSize: fileSize
+            fileSize: fileSize,
+            videoDuration: videoDuration
         )
     }
 }
