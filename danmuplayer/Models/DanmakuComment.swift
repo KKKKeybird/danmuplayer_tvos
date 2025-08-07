@@ -47,6 +47,16 @@ struct DanmakuComment: Codable, Identifiable {
         try container.encode(content, forKey: .content)
     }
     
+    /// 便利初始化器 - 用于从解析的弹幕数据创建
+    init(time: Double, mode: Int, fontSize: Int = 25, colorValue: Int, timestamp: TimeInterval, content: String) {
+        self.time = time
+        self.mode = mode
+        self.fontSize = fontSize
+        self.colorValue = colorValue
+        self.timestamp = timestamp
+        self.content = content
+    }
+    
     /// 获取弹幕颜色
     var color: Color {
         let red = Double((colorValue >> 16) & 0xFF) / 255.0

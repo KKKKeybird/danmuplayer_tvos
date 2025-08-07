@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 085DA4D62E44704D00C638F5 /* VLCKitSPM */; };
 		08B52A9F2E43927400D8EA9E /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 08B52A9E2E43926600D8EA9E /* README.md */; };
 /* End PBXBuildFile section */
 
@@ -31,6 +32,8 @@
 		0822C92F2E42440400609CE6 /* danmuplayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = danmuplayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0822C93C2E42440B00609CE6 /* danmuplayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = danmuplayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0822C9462E42440B00609CE6 /* danmuplayerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = danmuplayerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		085DA2B82E4465D200C638F5 /* verify_vlckit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = verify_vlckit.swift; sourceTree = "<group>"; };
+		085DA2B92E4465D200C638F5 /* VLCKit_Integration_Guide.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VLCKit_Integration_Guide.md; sourceTree = "<group>"; };
 		08B52A9E2E43926600D8EA9E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -45,6 +48,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,6 +72,8 @@
 		0822C9262E42440300609CE6 = {
 			isa = PBXGroup;
 			children = (
+				085DA2B82E4465D200C638F5 /* verify_vlckit.swift */,
+				085DA2B92E4465D200C638F5 /* VLCKit_Integration_Guide.md */,
 				0822C9312E42440400609CE6 /* danmuplayer */,
 				0822C93F2E42440B00609CE6 /* danmuplayerTests */,
 				0822C9492E42440B00609CE6 /* danmuplayerUITests */,
@@ -105,8 +111,6 @@
 				0822C9312E42440400609CE6 /* danmuplayer */,
 			);
 			name = danmuplayer;
-			packageProductDependencies = (
-			);
 			productName = danmuplayer;
 			productReference = 0822C92F2E42440400609CE6 /* danmuplayer.app */;
 			productType = "com.apple.product-type.application";
@@ -128,8 +132,6 @@
 				0822C93F2E42440B00609CE6 /* danmuplayerTests */,
 			);
 			name = danmuplayerTests;
-			packageProductDependencies = (
-			);
 			productName = danmuplayerTests;
 			productReference = 0822C93C2E42440B00609CE6 /* danmuplayerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -151,8 +153,6 @@
 				0822C9492E42440B00609CE6 /* danmuplayerUITests */,
 			);
 			name = danmuplayerUITests;
-			packageProductDependencies = (
-			);
 			productName = danmuplayerUITests;
 			productReference = 0822C9462E42440B00609CE6 /* danmuplayerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -190,6 +190,9 @@
 			);
 			mainGroup = 0822C9262E42440300609CE6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */,
+			);
 			productRefGroup = 0822C9302E42440400609CE6 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -547,6 +550,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		085DA4D62E44704D00C638F5 /* VLCKitSPM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */;
+			productName = VLCKitSPM;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0822C9272E42440300609CE6 /* Project object */;
 }

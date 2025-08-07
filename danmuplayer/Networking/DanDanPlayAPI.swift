@@ -438,7 +438,7 @@ class DanDanPlayAPI {
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/xml", forHTTPHeaderField: "Accept") // 请求XML格式
         
         // 添加身份验证头
         let path = "/api/v2/comment/\(series.episodeId)"
@@ -466,7 +466,7 @@ class DanDanPlayAPI {
                     // 对跳转地址发起新请求
                     var redirectRequest = URLRequest(url: redirectURL)
                     redirectRequest.httpMethod = "GET"
-                    redirectRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+                    redirectRequest.setValue("application/xml", forHTTPHeaderField: "Accept") // 请求XML格式
                     
                     self.session.dataTask(with: redirectRequest) { redirectData, redirectResponse, redirectError in
                         if let redirectError = redirectError {

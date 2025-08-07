@@ -285,7 +285,9 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
     
     /// 创建视频播放器视图模型
     func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel {
-        return VideoPlayerViewModel(jellyfinClient: jellyfinClient, mediaItem: item)
+        let viewModel = VideoPlayerViewModel(jellyfinClient: jellyfinClient, mediaItem: item)
+        // dismiss 将在视图中设置
+        return viewModel
     }
     
     /// 获取剧集列表

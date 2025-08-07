@@ -25,11 +25,15 @@ struct VideoPlayerContainer: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.primary.opacity(0.9))
             } else if let videoURL = videoURL {
-                VideoPlayerView(
-                    viewModel: VideoPlayerViewModel(
-                        videoURL: videoURL,
-                        subtitleFiles: subtitleFiles
-                    )
+                VLCVideoPlayerView(
+                    viewModel: {
+                        let viewModel = VideoPlayerViewModel(
+                            videoURL: videoURL,
+                            subtitleFiles: subtitleFiles
+                        )
+                        viewModel.dismiss = { dismiss() }
+                        return viewModel
+                    }()
                 )
             } else {
                 VStack {

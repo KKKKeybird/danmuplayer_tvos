@@ -113,13 +113,13 @@ struct JellyfinLibrary: Codable, Identifiable {
     let name: String
     let serverId: String
     let etag: String?
-    let dateCreated: String
-    let canDelete: Bool
-    let canDownload: Bool
-    let sortName: String
+    let dateCreated: String?
+    let canDelete: Bool?
+    let canDownload: Bool?
+    let sortName: String?
     let collectionType: String?
     let type: String
-    let locationType: String
+    let locationType: String?
     
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -142,12 +142,12 @@ struct JellyfinMediaItem: Codable, Identifiable {
     let name: String
     let serverId: String
     let etag: String?
-    let dateCreated: String
-    let canDelete: Bool
-    let canDownload: Bool
-    let sortName: String
+    let dateCreated: String?
+    let canDelete: Bool?
+    let canDownload: Bool?
+    let sortName: String?
     let type: String
-    let locationType: String
+    let locationType: String?
     let userData: JellyfinUserData?
     let productionYear: Int?
     let status: String?

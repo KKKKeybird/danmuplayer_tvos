@@ -40,7 +40,11 @@ struct JellyfinMediaLibraryView: View {
         }
         .sheet(isPresented: $showingVideoPlayer) {
             if let selectedItem = selectedItem {
-                VideoPlayerView(viewModel: viewModel.createVideoPlayerViewModel(for: selectedItem))
+                SwiftfinStyleVideoPlayerView(viewModel: {
+                    let playerViewModel = viewModel.createVideoPlayerViewModel(for: selectedItem)
+                    playerViewModel.dismiss = { showingVideoPlayer = false }
+                    return playerViewModel
+                }())
             }
         }
         .sheet(isPresented: $showingMediaDetail) {
