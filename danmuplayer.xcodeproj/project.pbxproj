@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -35,21 +35,9 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		0822C9312E42440400609CE6 /* danmuplayer */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = danmuplayer;
-			sourceTree = "<group>";
-		};
-		0822C93F2E42440B00609CE6 /* danmuplayerTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = danmuplayerTests;
-			sourceTree = "<group>";
-		};
-		0822C9492E42440B00609CE6 /* danmuplayerUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = danmuplayerUITests;
-			sourceTree = "<group>";
-		};
+		0822C9312E42440400609CE6 /* danmuplayer */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = danmuplayer; sourceTree = "<group>"; };
+		0822C93F2E42440B00609CE6 /* danmuplayerTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = danmuplayerTests; sourceTree = "<group>"; };
+		0822C9492E42440B00609CE6 /* danmuplayerUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = danmuplayerUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -193,6 +181,7 @@
 				};
 			};
 			buildConfigurationList = 0822C92A2E42440300609CE6 /* Build configuration list for PBXProject "danmuplayer" */;
+			compatibilityVersion = "Xcode 15.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -201,7 +190,6 @@
 			);
 			mainGroup = 0822C9262E42440300609CE6;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			productRefGroup = 0822C9302E42440400609CE6 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -335,7 +323,7 @@
 				SDKROOT = appletvos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				TVOS_DEPLOYMENT_TARGET = 18.5;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
 			};
 			name = Debug;
 		};
@@ -390,7 +378,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = appletvos;
 				SWIFT_COMPILATION_MODE = wholemodule;
-				TVOS_DEPLOYMENT_TARGET = 18.5;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -419,6 +407,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
 			};
 			name = Debug;
 		};
@@ -446,6 +435,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
 			};
 			name = Release;
 		};
@@ -463,7 +453,7 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/danmuplayer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/danmuplayer";
-				TVOS_DEPLOYMENT_TARGET = 18.5;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
 			};
 			name = Debug;
 		};
@@ -481,7 +471,7 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/danmuplayer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/danmuplayer";
-				TVOS_DEPLOYMENT_TARGET = 18.5;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
 			};
 			name = Release;
 		};
