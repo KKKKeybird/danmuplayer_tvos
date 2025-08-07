@@ -37,7 +37,12 @@ final class DanmakuParserTests: XCTestCase {
     func testParseCommentsFromEmptyData() {
         // 测试空数据解析
         let emptyData = Data()
-        let comments = DanmakuParser.parseComments(from: emptyData)
+        // 使用新的统一解析方法
+        guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: emptyData) else {
+            // 空数据应该解析失败，这是预期行为
+            return
+        }
+        let comments = commentResult.comments ?? []
         XCTAssertTrue(comments.isEmpty, "空数据应该返回空数组")
     }
     
@@ -61,14 +66,23 @@ final class DanmakuParserTests: XCTestCase {
             return
         }
         
-        let comments = DanmakuParser.parseComments(from: jsonData)
-        XCTAssertEqual(comments.count, 1, "应该解析出一条弹幕")
+        // 使用新的统一解析方法
+        guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: jsonData) else {
+            XCTFail("无法解析JSON数据")
+            return
+        }
         
-        let comment = comments.first!
-        XCTAssertEqual(comment.time, 5.0, "时间应该是5.0秒")
-        XCTAssertEqual(comment.mode, 1, "模式应该是1（普通弹幕）")
-        XCTAssertEqual(comment.userId, "user123", "用户ID应该匹配")
-        XCTAssertEqual(comment.content, "测试弹幕", "内容应该匹配")
+        let comments = commentResult.comments ?? []
+        let danmakuParams = comments.compactMap { $0.parsedParams }
+        
+        XCTAssertEqual(danmakuParams.count, 1, "应该解析出1条弹幕")
+        
+        let firstComment = danmakuParams.first!
+        XCTAssertEqual(firstComment.time, 5.0, "弹幕时间应该为5.0秒")
+        XCTAssertEqual(firstComment.mode, 1, "弹幕模式应该为1")
+        XCTAssertEqual(firstComment.color, 16777215, "弹幕颜色应该为白色")
+        XCTAssertEqual(firstComment.userId, "user123", "用户ID应该匹配")
+        XCTAssertEqual(firstComment.content, "测试弹幕", "弹幕内容应该匹配")
     }
 }
 

@@ -4,7 +4,7 @@ import Foundation
 /// 媒体库选择配置
 struct JellyfinLibraryConfig: Codable, Equatable {
     let serverId: String // 服务器标识
-    let selectedLibraryIds: Set<String> // 选择显示的媒体库ID列表
+    var selectedLibraryIds: Set<String> // 选择显示的媒体库ID列表
     let lastUpdated: Date
     
     init(serverId: String, selectedLibraryIds: Set<String>) {

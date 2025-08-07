@@ -141,7 +141,7 @@ struct FileListView: View {
     }
     
     private func videoPlayerViewWrapper(videoItem: WebDAVItem, subtitleFiles: [WebDAVItem], webDAVClient: WebDAVClient) -> some View {
-        WebDAVPlayerContainer(
+        NewWebDAVPlayerContainer(
             videoItem: videoItem,
             subtitleFiles: subtitleFiles,
             webDAVClient: webDAVClient

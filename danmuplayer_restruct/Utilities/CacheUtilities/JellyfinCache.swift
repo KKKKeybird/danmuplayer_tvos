@@ -6,7 +6,7 @@ import UIKit
 class JellyfinCache {
     static let shared = JellyfinCache()
     
-    private let metadataCache = NSCache<NSString, CachedItem>()
+    private let metadataCache = NSCache<NSString, JellyfinCachedItem>()
     private let imageCache = NSCache<NSString, UIImage>()
     private let fileManager = FileManager.default
     private let cacheDirectory: URL
@@ -38,7 +38,7 @@ class JellyfinCache {
     func cacheLibraryItems(_ items: [JellyfinMediaItem], for libraryId: String) {
         do {
             let cacheTime: TimeInterval = 1800  // 30分钟
-            let item = try CachedItem(data: items, expiryDate: Date().addingTimeInterval(cacheTime))
+            let item = try JellyfinCachedItem(data: items, expiryDate: Date().addingTimeInterval(cacheTime))
             let key = "library_items_\(libraryId)" as NSString
             metadataCache.setObject(item, forKey: key)
             
@@ -81,7 +81,7 @@ class JellyfinCache {
     func cacheEpisodeMetadata(_ episode: JellyfinEpisode) {
         do {
             let cacheTime: TimeInterval = 3600  // 1小时
-            let item = try CachedItem(data: episode, expiryDate: Date().addingTimeInterval(cacheTime))
+            let item = try JellyfinCachedItem(data: episode, expiryDate: Date().addingTimeInterval(cacheTime))
             let key = "episode_metadata_\(episode.id)" as NSString
             metadataCache.setObject(item, forKey: key)
             
@@ -132,7 +132,7 @@ class JellyfinCache {
     func cacheSeasons(_ seasons: [JellyfinMediaItem], for seriesId: String) {
         do {
             let cacheTime: TimeInterval = 3600  // 1小时
-            let item = try CachedItem(data: seasons, expiryDate: Date().addingTimeInterval(cacheTime))
+            let item = try JellyfinCachedItem(data: seasons, expiryDate: Date().addingTimeInterval(cacheTime))
             let key = "seasons_\(seriesId)" as NSString
             metadataCache.setObject(item, forKey: key)
             
@@ -222,7 +222,7 @@ class JellyfinCache {
     
     // MARK: - 磁盘缓存
     
-    private func saveToDisk(_ item: CachedItem, key: String) {
+    private func saveToDisk(_ item: JellyfinCachedItem, key: String) {
         let url = cacheDirectory.appendingPathComponent("\(key).cache")
         do {
             let data = try JSONEncoder().encode(item)
@@ -232,11 +232,11 @@ class JellyfinCache {
         }
     }
     
-    private func loadFromDisk(key: String) -> CachedItem? {
+    private func loadFromDisk(key: String) -> JellyfinCachedItem? {
         let url = cacheDirectory.appendingPathComponent("\(key).cache")
         do {
             let data = try Data(contentsOf: url)
-            return try JSONDecoder().decode(CachedItem.self, from: data)
+            return try JSONDecoder().decode(JellyfinCachedItem.self, from: data)
         } catch {
             return nil
         }
@@ -310,18 +310,6 @@ class JellyfinCache {
     
     // MARK: - 选择性缓存清理
     
-    /// 清除特定媒体库的缓存（已废弃：改用媒体库选择配置）
-    @available(*, deprecated, message: "不再缓存媒体库列表，改用 JellyfinLibraryConfigManager")
-    func clearLibrariesCache(for serverURL: String) {
-        let key = "libraries_\(serverURL.md5)" as NSString
-        metadataCache.removeObject(forKey: key)
-        
-        let fileURL = cacheDirectory.appendingPathComponent("\(key).cache")
-        try? fileManager.removeItem(at: fileURL)
-        
-        print("JellyfinCache: 已清除媒体库缓存")
-    }
-    
     /// 清除特定媒体库项目的缓存
     func clearLibraryItemsCache(for libraryId: String) {
         let key = "library_items_\(libraryId)" as NSString
@@ -369,15 +357,17 @@ extension String {
     var md5: String {
         let data = Data(self.utf8)
         let hash = data.withUnsafeBytes { bytes in
+            let buffer = bytes.bindMemory(to: UInt8.self)
+            guard buffer.count >= 4 else { return "0000" }
             return String(format: "%02x%02x%02x%02x", 
-                         bytes[0], bytes[1], bytes[2], bytes[3])
+                         buffer[0], buffer[1], buffer[2], buffer[3])
         }
         return "\(self.hashValue)_\(hash)" // 使用hashValue作为简单的哈希替代
     }
 }
 
 /// 缓存项，包含数据和过期时间
-class CachedItem: NSObject, Codable {
+class JellyfinCachedItem: NSObject, Codable {
     enum CodableData: Codable {
         case libraryArray([JellyfinLibrary])
         case mediaItemArray([JellyfinMediaItem])

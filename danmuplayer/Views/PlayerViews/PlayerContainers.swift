@@ -1,57 +1,39 @@
 /// 播放器View层 - UI组件和工厂方法
 import SwiftUI
 
+// MARK: - 简化播放器参数
+
+/// 统一播放器参数结构
+struct PlayerParameters {
+    let videoURL: URL
+    let originalFileName: String
+    let subtitleFiles: [SubtitleFileInfo]
+    let mediaType: MediaSourceType
+    let onDismiss: () -> Void
+}
+
+/// 字幕文件信息
+struct SubtitleFileInfo {
+    let name: String
+    let url: URL?
+    let language: String?
+}
+
 // MARK: - 统一播放器工厂
 
 @available(tvOS 17.0, *)
 struct UnifiedPlayerFactory {
     
-    /// 为WebDAV创建播放器视图
-    static func createWebDAVPlayer(
-        videoItem: WebDAVItem,
-        subtitleFiles: [WebDAVItem],
-        videoURL: URL,
-        onDismiss: @escaping () -> Void
-    ) -> SwiftfinStyleVideoPlayerView {
-        
-        let dataSource = WebDAVDataSource(
-            videoItem: videoItem,
-            webDAVSubtitleFiles: subtitleFiles,
-            videoURL: videoURL
+    /// 统一播放器创建方法
+    @MainActor
+    static func createPlayer(parameters: PlayerParameters) -> SwiftfinStyleVideoPlayerView {
+        let viewModel = VideoPlayerViewModel(
+            videoURL: parameters.videoURL,
+            originalFileName: parameters.originalFileName,
+            subtitleFiles: parameters.subtitleFiles,
+            mediaType: parameters.mediaType
         )
-        
-        let viewModel = VideoPlayerViewModel(dataSource: dataSource)
-        viewModel.dismiss = onDismiss
-        
-        return SwiftfinStyleVideoPlayerView(viewModel: viewModel)
-    }
-    
-    /// 为Jellyfin创建播放器视图
-    static func createJellyfinPlayer(
-        mediaItem: JellyfinMediaItem,
-        videoURL: URL,
-        onDismiss: @escaping () -> Void
-    ) -> SwiftfinStyleVideoPlayerView {
-        
-        let dataSource = JellyfinDataSource(
-            mediaItem: mediaItem,
-            videoURL: videoURL
-        )
-        
-        let viewModel = VideoPlayerViewModel(dataSource: dataSource)
-        viewModel.dismiss = onDismiss
-        
-        return SwiftfinStyleVideoPlayerView(viewModel: viewModel)
-    }
-    
-    /// 通用播放器创建方法
-    static func createPlayer(
-        dataSource: UnifiedPlayerDataSource,
-        onDismiss: @escaping () -> Void
-    ) -> SwiftfinStyleVideoPlayerView {
-        
-        let viewModel = VideoPlayerViewModel(dataSource: dataSource)
-        viewModel.dismiss = onDismiss
+        viewModel.dismiss = parameters.onDismiss
         
         return SwiftfinStyleVideoPlayerView(viewModel: viewModel)
     }

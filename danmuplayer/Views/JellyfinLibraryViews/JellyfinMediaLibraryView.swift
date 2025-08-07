@@ -74,8 +74,8 @@ struct JellyfinMediaLibraryView: View {
         }
         .sheet(isPresented: $showingVideoPlayer) {
             if let selectedItem = selectedItem {
-                // 使用新的MVVM架构播放器
-                JellyfinPlayerContainer(
+                // 使用新的简化播放器架构
+                NewJellyfinPlayerContainer(
                     mediaItem: selectedItem,
                     jellyfinClient: viewModel.jellyfinClient
                 )

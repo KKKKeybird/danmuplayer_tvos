@@ -9,11 +9,28 @@ class AsyncImageLoader: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var error: Error?
     
-    private let url: URL
+    private(set) var url: URL
     private var task: URLSessionDataTask?
     
     init(url: URL) {
         self.url = url
+    }
+    
+    func updateURL(_ newURL: URL) {
+        guard newURL != url else { return }
+        
+        // 取消当前任务
+        cancel()
+        
+        // 清除当前状态
+        image = nil
+        error = nil
+        
+        // 更新 URL
+        url = newURL
+        
+        // 开始加载新图片
+        load()
     }
     
     func load() {
@@ -60,7 +77,9 @@ class AsyncImageLoader: ObservableObject {
     }
     
     deinit {
-        cancel()
+        Task { @MainActor in
+            self.cancel()
+        }
     }
 }
 
@@ -80,13 +99,12 @@ struct CachedAsyncImage<Content: View>: View {
     var body: some View {
         content(currentPhase)
             .onAppear {
-                if let url = url, loader.url != url {
-                    // 需要加载新的图片
-                    let newLoader = AsyncImageLoader(url: url)
-                    _loader.wrappedValue = newLoader
-                    newLoader.load()
-                } else if url != nil {
-                    loader.load()
+                if let url = url {
+                    if loader.url != url {
+                        loader.updateURL(url)
+                    } else {
+                        loader.load()
+                    }
                 }
             }
             .onDisappear {

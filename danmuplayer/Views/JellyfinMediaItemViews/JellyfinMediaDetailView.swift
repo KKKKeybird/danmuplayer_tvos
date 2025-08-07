@@ -1,29 +1,8 @@
 /// Jellyfin媒体详情页面
 import SwiftUI
 
-/// 显示Jellyfin媒体项目的详细信息            // 海报
-            CachedAsyncImage(url: viewModel.getImageUrl(for: item, type: "Primary", maxWidth: 400)) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(2/3, contentMode: .fill)
-                        .frame(width: 200, height: 300)
-                        .clipped()
-                        .cornerRadius(12)
-                case .failure(_), .empty:
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.secondary.opacity(0.3))
-                        .frame(width: 200, height: 300)
-                        .overlay(
-                            Image(systemName: item.type == "Movie" ? "film" : "tv")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.secondary)
-                        )
-                @unknown default:
-                    EmptyView()
-                }
-            }(tvOS 17.0, *)
+/// 显示Jellyfin媒体项目的详细信息
+@available(tvOS 17.0, *)
 struct JellyfinMediaDetailView: View {
     let item: JellyfinMediaItem
     let viewModel: JellyfinMediaLibraryViewModel

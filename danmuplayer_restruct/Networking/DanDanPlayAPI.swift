@@ -45,6 +45,7 @@ class DanDanPlayAPI {
         return true
     }
     
+    // MARK: - 剧集匹配
     /// 自动识别剧集（返回最佳匹配结果）
     func identifyEpisode(for videoURL: URL, completion: @escaping (Result<DanDanPlayEpisode, Error>) -> Void) {
         // 提取文件信息
@@ -57,11 +58,10 @@ class DanDanPlayAPI {
         let fileNameWithoutExtension = (fileName as NSString).deletingPathExtension
         
         // 先检查缓存（如果用户之前手动选择过，缓存中就是用户选择的结果）
-        let cacheKey = !fileInfo.fileHash.isEmpty ? fileInfo.fileHash : fileNameWithoutExtension
-        if let cachedResults = DanDanPlayCache.shared.getCachedSearchResult(for: cacheKey),
-           let firstResult = cachedResults.first {
-            print("📦 使用缓存的剧集: \(firstResult.displayTitle)")
-            completion(.success(firstResult))
+        let cacheKey = videoURL
+        if let cachedResult = DanDanPlayCache.shared.getCachedEpisodeInfo(for: cacheKey) {
+            print("📦 使用缓存的剧集: \(cachedResult.displayTitle)")
+            completion(.success(cachedResult))
             return
         }
         
@@ -127,7 +127,7 @@ class DanDanPlayAPI {
                 guard matchResult.success, matchResult.errorCode == 0 else {
                     print("Match API调用失败: \(matchResult.errorMessage ?? "未知错误")")
                     // 回退到搜索API
-                    self.fallbackToSearch(fileNameWithoutExtension: fileNameWithoutExtension, completion: completion)
+                    completion(.failure(NetworkError.serverError(matchResult.errorCode)))
                     return
                 }
                 
@@ -141,121 +141,23 @@ class DanDanPlayAPI {
                         shift: match.shift // 保留偏移时间信息
                     )
                     
-                    // 缓存所有匹配结果供后续手动选择使用
-                    if let matches = matchResult.matches {
-                        let episodeList = matches.map { match in
-                            DanDanPlayEpisode(
-                                animeId: match.animeId,
-                                animeTitle: match.animeTitle ?? "未知作品",
-                                episodeId: Int(match.episodeId),
-                                episodeTitle: match.episodeTitle ?? "未知剧集",
-                                shift: match.shift
-                            )
-                        }
-                        DanDanPlayCache.shared.cacheSearchResult(episodeList, for: cacheKey)
-                    }
+                    DanDanPlayCache.shared.cacheEpisodeInfo(episode, for: videoURL)
                     
                     completion(.success(episode))
                 } else {
                     // 如果匹配失败，回退到搜索API
-                    self.fallbackToSearch(fileNameWithoutExtension: fileNameWithoutExtension, completion: completion)
-                }
-            } catch {
-                // 解析失败，回退到搜索API
-                self.fallbackToSearch(fileNameWithoutExtension: fileNameWithoutExtension, completion: completion)
-            }
-        }.resume()
-    }
-    
-    /// 回退搜索方法，当文件匹配失败时使用
-    private func fallbackToSearch(fileNameWithoutExtension: String, completion: @escaping (Result<DanDanPlayEpisode, Error>) -> Void) {
-        // 构建搜索请求
-        guard let encodedFileName = fileNameWithoutExtension.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)/api/v2/search/episodes?anime=\(encodedFileName)") else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
-        // 添加身份验证头
-        let path = "/api/v2/search/episodes"
-        guard addAuthenticationHeaders(to: &request, path: path) else {
-            completion(.failure(NetworkError.authenticationFailed))
-            return
-        }
-
-        session.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(.failure(NetworkError.connectionFailed))
-                return
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(NetworkError.invalidResponse))
-                return
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
-                return
-            }
-            
-            guard let data = data else {
-                completion(.failure(NetworkError.noData))
-                return
-            }
-            
-            do {
-                let searchResult = try JSONDecoder().decode(DanDanPlaySearchResult.self, from: data)
-                
-                // 检查API调用是否成功
-                guard searchResult.success, searchResult.errorCode == 0 else {
-                    print("Search API调用失败: \(searchResult.errorMessage ?? "未知错误")")
-                    completion(.failure(NetworkError.serverError(searchResult.errorCode)))
-                    return
-                }
-                
-                if let animes = searchResult.animes, let firstAnime = animes.first {
-                    // 选择第一个匹配的动画和第一集
-                    let episode = DanDanPlayEpisode(
-                        animeId: firstAnime.animeId,
-                        animeTitle: firstAnime.animeTitle ?? "未知作品",
-                        episodeId: firstAnime.episodes?.first?.episodeId ?? 0,
-                        episodeTitle: firstAnime.episodes?.first?.episodeTitle ?? "未知剧集",
-                        shift: nil // 搜索API没有偏移时间信息
-                    )
-                    
-                    // 缓存搜索结果
-                    var episodeList: [DanDanPlayEpisode] = []
-                    for anime in animes {
-                        if let episodes = anime.episodes {
-                            for episode in episodes {
-                                let episodeItem = DanDanPlayEpisode(
-                                    animeId: anime.animeId,
-                                    animeTitle: anime.animeTitle ?? "未知作品",
-                                    episodeId: episode.episodeId,
-                                    episodeTitle: episode.episodeTitle ?? "未知剧集",
-                                    shift: nil // 搜索API没有偏移时间信息
-                                )
-                                episodeList.append(episodeItem)
-                            }
-                        }
-                    }
-                    DanDanPlayCache.shared.cacheSearchResult(episodeList, for: fileNameWithoutExtension)
-                    
-                    completion(.success(episode))
-                } else {
                     completion(.failure(NetworkError.notFound))
+                    return
                 }
             } catch {
                 completion(.failure(NetworkError.parseError))
+                return
             }
         }.resume()
     }
 
+
+    // MARK: - 剧集候选列表搜索
     /// 获取候选剧集列表供用户手动选择
     func fetchCandidateEpisodeList(for videoURL: URL, completion: @escaping (Result<[DanDanPlayEpisode], Error>) -> Void) {
         // 提取文件信息
@@ -266,13 +168,6 @@ class DanDanPlayAPI {
         
         let fileName = fileInfo.fileName
         let fileNameWithoutExtension = (fileName as NSString).deletingPathExtension
-        
-        // 先检查缓存 - 使用文件hash作为缓存key
-        let cacheKey = !fileInfo.fileHash.isEmpty ? fileInfo.fileHash : fileNameWithoutExtension
-        if let cachedResults = DanDanPlayCache.shared.getCachedSearchResult(for: cacheKey) {
-            completion(.success(cachedResults))
-            return
-        }
         
         // 先尝试文件匹配
         guard let url = URL(string: "\(baseURL)/api/v2/match") else {
@@ -336,7 +231,7 @@ class DanDanPlayAPI {
                 guard matchResult.success, matchResult.errorCode == 0 else {
                     print("Match API调用失败: \(matchResult.errorMessage ?? "未知错误")")
                     // 回退到搜索API
-                    self.fallbackToCandidateSearch(fileNameWithoutExtension: fileNameWithoutExtension, completion: completion)
+                    completion(.failure(NetworkError.serverError(matchResult.errorCode)))
                     return
                 }
                 
@@ -351,150 +246,62 @@ class DanDanPlayAPI {
                         )
                     }
                     
-                    // 缓存匹配结果
-                    DanDanPlayCache.shared.cacheSearchResult(episodeList, for: cacheKey)
                     completion(.success(episodeList))
                 } else {
-                    // 如果匹配失败，回退到搜索API
-                    self.fallbackToCandidateSearch(fileNameWithoutExtension: fileNameWithoutExtension, completion: completion)
-                }
-            } catch {
-                // 解析失败，回退到搜索API
-                self.fallbackToCandidateSearch(fileNameWithoutExtension: fileNameWithoutExtension, completion: completion)
-            }
-        }.resume()
-    }
-    
-    /// 候选搜索的回退方法
-    private func fallbackToCandidateSearch(fileNameWithoutExtension: String, completion: @escaping (Result<[DanDanPlayEpisode], Error>) -> Void) {
-        guard let encodedFileName = fileNameWithoutExtension.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)/api/v2/search/episodes?anime=\(encodedFileName)") else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
-        // 添加身份验证头
-        let path = "/api/v2/search/episodes"
-        guard addAuthenticationHeaders(to: &request, path: path) else {
-            completion(.failure(NetworkError.authenticationFailed))
-            return
-        }
-
-        session.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(.failure(NetworkError.connectionFailed))
-                return
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(NetworkError.invalidResponse))
-                return
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
-                return
-            }
-            
-            guard let data = data else {
-                completion(.failure(NetworkError.noData))
-                return
-            }
-            
-            do {
-                let searchResult = try JSONDecoder().decode(DanDanPlaySearchResult.self, from: data)
-                
-                // 检查API调用是否成功
-                guard searchResult.success, searchResult.errorCode == 0 else {
-                    print("Search API调用失败: \(searchResult.errorMessage ?? "未知错误")")
-                    completion(.failure(NetworkError.serverError(searchResult.errorCode)))
+                    completion(.failure(NetworkError.notFound))
                     return
                 }
-                
-                var episodeList: [DanDanPlayEpisode] = []
-                
-                if let animes = searchResult.animes {
-                    for anime in animes {
-                        if let episodes = anime.episodes {
-                            for episode in episodes {
-                                let episodeItem = DanDanPlayEpisode(
-                                    animeId: anime.animeId,
-                                    animeTitle: anime.animeTitle ?? "未知作品",
-                                    episodeId: episode.episodeId,
-                                    episodeTitle: episode.episodeTitle ?? "未知剧集",
-                                    shift: nil // 搜索API没有偏移时间信息
-                                )
-                                episodeList.append(episodeItem)
-                            }
-                        }
-                    }
-                }
-                
-                // 缓存搜索结果
-                DanDanPlayCache.shared.cacheSearchResult(episodeList, for: fileNameWithoutExtension)
-                
-                completion(.success(episodeList))
             } catch {
                 completion(.failure(NetworkError.parseError))
+                return
             }
         }.resume()
     }
 
-    /// 更新剧集选择结果，通知弹幕匹配
-    func updateEpisodeSelection(episode: DanDanPlayEpisode, for videoURL: URL, completion: @escaping (Result<Bool, Error>) -> Void) {
-        // 提取文件信息以获取正确的缓存key
-        guard let fileInfo = FileInfoExtractor.extractFileInfo(from: videoURL) else {
-            completion(.failure(NetworkError.invalidURL))
+
+    // MARK: - 加载ASS弹幕
+    /// 加载弹幕并转换为ASS格式（新版简化API）
+    func loadDanmakuAsASS(for episode: DanDanPlayEpisode, completion: @escaping (Result<String, Error>) -> Void) {
+        // 先检查ASS缓存
+        if let cachedASS = DanDanPlayCache.shared.getCachedASSSubtitle(for: episode.episodeId) {
+            completion(.success(cachedASS))
             return
         }
         
-        let fileName = fileInfo.fileName
-        let fileNameWithoutExtension = (fileName as NSString).deletingPathExtension
-        let cacheKey = !fileInfo.fileHash.isEmpty ? fileInfo.fileHash : fileNameWithoutExtension
-        
-        // 直接用用户选择的剧集覆盖现有缓存
-        // 将用户选择的剧集作为唯一结果缓存，这样下次会优先使用
-        DanDanPlayCache.shared.cacheSearchResult([episode], for: cacheKey)
-        
-        // 同时也缓存到专门的剧集信息缓存（长期缓存）
-        DanDanPlayCache.shared.cacheEpisodeInfo(episode, for: cacheKey)
-        
-        print("用户手动选择已保存并覆盖缓存: \(episode.displayTitle)")
-        if let shiftDesc = episode.shiftDescription {
-            print("弹幕偏移: \(shiftDesc)")
-        }
-        
-        // 异步返回成功
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
-            completion(.success(true))
-        }
-    }
-    
-    /// 更新剧集选择结果的便捷方法（当无法获取videoURL时使用）
-    func updateEpisodeSelection(episode: DanDanPlayEpisode, completion: @escaping (Result<Bool, Error>) -> Void) {
-        // 使用episodeId作为缓存key的简化版本
-        // 这种情况下无法获取到具体的文件信息，只能基于剧集ID缓存
-        let cacheKey = "episode_\(episode.episodeId)"
-        
-        DanDanPlayCache.shared.cacheSearchResult([episode], for: cacheKey)
-        DanDanPlayCache.shared.cacheEpisodeInfo(episode, for: cacheKey)
-        
-        print("用户手动选择已保存: \(episode.displayTitle)")
-        if let shiftDesc = episode.shiftDescription {
-            print("弹幕偏移: \(shiftDesc)")
-        }
-        
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
-            completion(.success(true))
+        // 加载原始弹幕数据
+        loadDanmaku(for: episode) { result in
+            switch result {
+            case .success(let data):
+                do {
+                    // 解析弹幕数据
+                    let commentResult = try JSONDecoder().decode(DanDanPlayCommentResult.self, from: data)
+                    let comments = commentResult.comments ?? []
+                    let danmakuParams = comments.compactMap { $0.parsedParams }
+                    
+                    // 转换为ASS格式
+                    let converter = DanmakuToSubtitleConverter()
+                    let assContent = converter.convertToASS(
+                        danmakuParams: danmakuParams,
+                        episodeId: episode.episodeId,
+                        episodeTitle: episode.displayTitle
+                    )
+                    
+                    // 缓存ASS内容
+                    DanDanPlayCache.shared.cacheASSSubtitle(assContent, for: episode.episodeId)
+                    
+                    completion(.success(assContent))
+                    
+                } catch {
+                    completion(.failure(NetworkError.parseError))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
         }
     }
 
     /// 加载对应剧集的弹幕数据
-    func loadDanmaku(for episode: DanDanPlayEpisode, completion: @escaping (Result<Data, Error>) -> Void) {
+    private func loadDanmaku(for episode: DanDanPlayEpisode, completion: @escaping (Result<Data, Error>) -> Void) {
         // 先检查缓存
         if let cachedData = DanDanPlayCache.shared.getCachedDanmaku(for: episode.episodeId) {
             completion(.success(cachedData))
@@ -596,29 +403,6 @@ class DanDanPlayAPI {
     }
 }
 
-// MARK: - API Response Models
-
-struct DanDanPlaySearchResult: Codable {
-    let errorCode: Int          // 错误代码，0表示没有发生错误
-    let success: Bool           // 接口是否调用成功
-    let errorMessage: String?   // 错误信息，可为空
-    let hasMore: Bool           // 是否有更多未显示的搜索结果
-    let animes: [SearchEpisodesAnime]? // 搜索结果（作品信息）列表，可为空
-}
-
-struct SearchEpisodesAnime: Codable {
-    let animeId: Int           // 作品编号
-    let animeTitle: String?    // 作品标题，可为空
-    let type: String?          // 作品类型，可为空
-    let typeDescription: String? // 类型描述，可为空
-    let episodes: [SearchEpisodeDetails]? // 此作品的剧集列表，可为空
-}
-
-struct SearchEpisodeDetails: Codable {
-    let episodeId: Int         // 剧集编号
-    let episodeTitle: String?  // 剧集标题，可为空
-}
-
 // MARK: - Match API Response Models
 
 struct DanDanPlayMatchResult: Codable {
@@ -637,37 +421,26 @@ struct MatchResult: Codable {
     let type: String?          // 作品类别，可为空
     let typeDescription: String? // 类型描述，可为空
     let shift: Double          // 弹幕偏移时间（秒），负数表示提前出现
-    
-    /// 获取格式化的偏移时间描述
-    var shiftDescription: String {
-        if shift == 0 {
-            return "无偏移"
-        } else if shift > 0 {
-            return "延迟 \(String(format: "%.1f", shift)) 秒"
-        } else {
-            return "提前 \(String(format: "%.1f", abs(shift))) 秒"
-        }
-    }
 }
 
 // MARK: - Comment API Response Models
 
+/// 弹幕API响应结果
 struct DanDanPlayCommentResult: Codable {
-    let count: Int
-    let comments: [CommentResult]
+    let count: Int32              // 弹幕数量
+    let comments: [CommentData]?  // 弹幕列表，可为null
 }
 
-struct CommentResult: Codable {
-    let cid: Int
-    let p: String  // 格式: "时间,模式,颜色,用户ID" 例如: "12.34,1,16777215,1234567890"
-    let m: String  // 弹幕内容
-}
+/// 弹幕数据
+struct CommentData: Codable {
+    let cid: Int64      // 弹幕ID（64位整数）
+    let p: String?      // 弹幕参数（出现时间,模式,颜色,用户ID），可为null
+    let m: String?      // 弹幕内容，可为null
 
-// MARK: - 弹幕参数解析扩展
-extension CommentResult {
-    /// 解析弹幕参数
+    /// 解析的弹幕参数
     struct DanmakuParams {
-        let time: Double        // 出现时间（秒）
+        let cid: Int64         // 弹幕ID
+        let time: Double       // 出现时间（秒）
         let mode: Int          // 弹幕模式：1-普通，4-底部，5-顶部
         let color: UInt32      // 颜色值（32位整数）
         let userId: String     // 用户ID
@@ -676,7 +449,12 @@ extension CommentResult {
     
     /// 解析p参数字符串
     var parsedParams: DanmakuParams? {
-        let components = p.components(separatedBy: ",")
+        // 检查必要的字段
+        guard let pString = p, let content = m else { 
+            return nil 
+        }
+        
+        let components = pString.components(separatedBy: ",")
         guard components.count >= 4 else { return nil }
         
         guard let time = Double(components[0]),
@@ -688,11 +466,12 @@ extension CommentResult {
         let userId = components[3]
         
         return DanmakuParams(
+            cid: cid,
             time: time,
             mode: mode,
             color: color,
             userId: userId,
-            content: m
+            content: content
         )
     }
     
@@ -706,40 +485,5 @@ extension CommentResult {
         let blue = UInt8(color & 0xFF)
         
         return (red: red, green: green, blue: blue)
-    }
-}
-
-extension DanDanPlayAPI {
-    /// 根据文件名直接进行剧集识别（用于Jellyfin等媒体服务器）
-    func identifyEpisodeByName(_ fileName: String, completion: @escaping (Result<DanDanPlayEpisode, Error>) -> Void) {
-        let fileNameWithoutExtension = (fileName as NSString).deletingPathExtension
-        
-        // 先检查缓存
-        if let cachedResults = DanDanPlayCache.shared.getCachedSearchResult(for: fileNameWithoutExtension),
-           let firstResult = cachedResults.first {
-            completion(.success(firstResult))
-            return
-        }
-        
-        // 直接使用搜索API
-        fallbackToSearch(fileNameWithoutExtension: fileNameWithoutExtension, completion: completion)
-    }
-    
-    /// 获取解析后的弹幕数据
-    func loadParsedDanmaku(for episode: DanDanPlayEpisode, completion: @escaping (Result<[CommentResult.DanmakuParams], Error>) -> Void) {
-        loadDanmaku(for: episode) { result in
-            switch result {
-            case .success(let data):
-                do {
-                    let commentResult = try JSONDecoder().decode(DanDanPlayCommentResult.self, from: data)
-                    let parsedComments = commentResult.comments.compactMap { $0.parsedParams }
-                    completion(.success(parsedComments))
-                } catch {
-                    completion(.failure(NetworkError.parseError))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
     }
 }

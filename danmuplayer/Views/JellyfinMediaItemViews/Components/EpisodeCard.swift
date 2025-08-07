@@ -121,22 +121,46 @@ struct EpisodeCard: View {
 
 #Preview {
     EpisodeCard(
-        episode: JellyfinEpisode(
+        episode: JellyfinMediaItem(
             id: "preview",
             name: "示例剧集",
+            serverId: "server1",
+            etag: nil,
+            dateCreated: nil,
+            canDelete: nil,
+            canDownload: nil,
+            sortName: nil,
+            type: "Episode",
+            locationType: nil,
+            userData: nil,
+            productionYear: nil,
+            status: nil,
+            endDate: nil,
             overview: "这是一个示例剧集的概述信息，用于预览显示。",
+            communityRating: nil,
+            officialRating: nil,
+            runTimeTicks: 162000000000, // 45分钟 (45 * 60 * 10,000,000 ticks)
+            genres: nil,
+            tags: nil,
+            imageTags: nil,
+            seriesName: nil,
+            seriesId: nil,
+            seasonId: nil,
+            seasonName: nil,
             indexNumber: 1,
             parentIndexNumber: 1,
-            duration: 2700, // 45分钟
-            userData: nil
+            primaryImageAspectRatio: nil
         ),
         viewModel: JellyfinMediaLibraryViewModel(config: MediaLibraryConfig(
-            id: "preview",
+            id: UUID(),
             name: "Preview",
-            serverType: .jellyfin,
             serverURL: "http://localhost:8096",
+            serverType: .jellyfin,
             username: nil,
-            password: nil
+            password: nil,
+            apiKey: nil,
+            userId: nil,
+            isMediaLibrary: false
         )),
         onPlay: { _ in }
     )

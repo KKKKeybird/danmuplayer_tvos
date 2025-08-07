@@ -45,6 +45,7 @@ class JellyfinClient {
         )
     }
     
+    // MARK: - 连接测试
     /// 测试连接
     func testConnection(completion: @escaping (Result<Bool, Error>) -> Void) {
         let url = serverURL.appendingPathComponent("System/Info")
@@ -759,6 +760,7 @@ class JellyfinClient {
     }
 }
 
+    // MARK: - 证书设置
 /// URLSessionDelegate to handle self-signed certificates and HTTP connections
 class JellyfinURLSessionDelegate: NSObject, URLSessionDelegate {
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {

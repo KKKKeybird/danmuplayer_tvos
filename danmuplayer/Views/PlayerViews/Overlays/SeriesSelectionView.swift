@@ -4,8 +4,8 @@ import SwiftUI
 /// 番剧识别候选列表页面，供用户选择匹配的番剧
 @available(tvOS 17.0, *)
 struct SeriesSelectionView: View {
-    let seriesList: [DanDanPlaySeries]
-    let onSelection: (DanDanPlaySeries) -> Void
+    let seriesList: [DanDanPlayEpisode]
+    let onSelection: (DanDanPlayEpisode) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {

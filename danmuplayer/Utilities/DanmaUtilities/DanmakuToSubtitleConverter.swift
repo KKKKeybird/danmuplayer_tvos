@@ -86,6 +86,23 @@ class DanmakuToSubtitleConverter {
         return fileURL
     }
     
+    /// 直接将弹幕保存为字幕文件（不缓存）
+    static func saveDanmakuAsSubtitle(_ comments: [DanmakuComment], 
+                                     format: SubtitleFormat, 
+                                     to url: URL) throws {
+        let content: String
+        
+        switch format {
+        case .srt:
+            content = convertToSRT(comments)
+        case .ass:
+            content = convertToASS(comments)
+        }
+        
+        // 写入文件
+        try content.write(to: url, atomically: true, encoding: .utf8)
+    }
+    
     /// 获取缓存的字幕文件URL
     static func getCachedSubtitleURL(episodeId: Int, 
                                    episodeNumber: Int? = nil, 
@@ -207,11 +224,30 @@ class DanmakuToSubtitleConverter {
                                        episodeId: Int, 
                                        format: SubtitleFormat = .srt,
                                        episodeNumber: Int? = nil) throws -> URL? {
-        // 解析弹幕数据
-        let comments = try DanmakuParser.parseDanmaku(from: danmakuData)
+        // 直接解析为统一的弹幕参数格式
+        guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: danmakuData) else {
+            print("无法解析弹幕JSON数据")
+            return nil
+        }
+        
+        // 处理可能为null的comments数组
+        let comments = commentResult.comments ?? []
+        let danmakuParams = comments.compactMap { $0.parsedParams }
+        
+        // 转换为DanmakuComment类型（为了兼容现有的字幕生成方法）
+        let danmakuComments = danmakuParams.map { params in
+            DanmakuComment(
+                time: params.time,
+                mode: params.mode,
+                fontSize: 25, // 默认字体大小
+                colorValue: Int(params.color),
+                timestamp: params.time,
+                content: params.content
+            )
+        }
         
         // 生成并缓存字幕文件
-        return try cacheDanmakuAsSubtitle(comments, format: format, episodeId: episodeId, episodeNumber: episodeNumber)
+        return try cacheDanmakuAsSubtitle(danmakuComments, format: format, episodeId: episodeId, episodeNumber: episodeNumber)
     }
     
     private static func formatSRTTime(_ seconds: Double) -> String {

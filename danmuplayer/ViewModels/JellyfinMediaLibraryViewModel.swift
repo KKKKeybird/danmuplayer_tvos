@@ -19,6 +19,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
     @Published var isAuthenticated = false
     @Published var isPerformingDetailedTest = false
     @Published var connectionTestResults: [String] = []
+    @Published var showingLibrarySelection = false
     
     enum BrowsingLevel {
         case libraries
@@ -173,10 +174,8 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         if series.type == "Series" {
             currentLevel = .seasons
             loadSeasons(for: series.id)
-        } else if series.type == "Movie" {
-            // 直接播放电影
-            playMovie(series)
         }
+        // 电影播放现在通过UI层的统一逻辑处理，不再在ViewModel中直接处理
     }
     
     /// 选择季节并加载剧集
@@ -287,12 +286,6 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
                 }
             }
         }
-    }
-    
-    /// 播放电影
-    private func playMovie(_ movie: JellyfinMediaItem) {
-        // 这里可以添加播放电影的逻辑
-        print("JellyfinMediaLibraryViewModel: Playing movie: \(movie.name)")
     }
     
     /// 刷新当前媒体库

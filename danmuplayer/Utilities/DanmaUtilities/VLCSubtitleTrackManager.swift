@@ -32,9 +32,17 @@ class VLCSubtitleTrackManager {
         // 先记录当前的字幕状态
         recordCurrentSubtitleState()
         
-        // 解析弹幕数据
-        let comments = DanmakuParser.parseComments(from: danmakuData)
-        guard !comments.isEmpty else {
+        // 直接解析为统一的弹幕参数格式
+        guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: danmakuData) else {
+            print("无法解析弹幕JSON数据")
+            return false
+        }
+        
+        // 处理可能为null的comments数组
+        let comments = commentResult.comments ?? []
+        let danmakuParams = comments.compactMap { $0.parsedParams }
+        
+        guard !danmakuParams.isEmpty else {
             print("没有弹幕数据可添加")
             return false
         }
@@ -49,14 +57,14 @@ class VLCSubtitleTrackManager {
         } else {
             // 2. 没有缓存，生成并缓存字幕文件
             do {
-                let danmakuComments = comments.map { parsedComment in
+                let danmakuComments = danmakuParams.map { params in
                     DanmakuComment(
-                        time: parsedComment.time,
-                        mode: parsedComment.mode,
+                        time: params.time,
+                        mode: params.mode,
                         fontSize: 25,
-                        colorValue: colorToInt(parsedComment.color),
-                        timestamp: Date().timeIntervalSince1970,
-                        content: parsedComment.content
+                        colorValue: Int(params.color),
+                        timestamp: params.time,
+                        content: params.content
                     )
                 }
                 

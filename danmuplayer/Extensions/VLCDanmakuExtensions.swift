@@ -10,10 +10,17 @@ extension VLCMediaPlayer {
     ///   - danmakuData: 弹幕XML或JSON数据
     ///   - format: 字幕格式
     func loadDanmakuAsSubtitle(_ danmakuData: Data, format: SubtitleFormat = .ass) {
-        // 解析弹幕数据
-        let comments = DanmakuParser.parseComments(from: danmakuData)
+        // 直接解析为统一的弹幕参数格式
+        guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: danmakuData) else {
+            print("无法解析弹幕JSON数据")
+            return
+        }
         
-        guard !comments.isEmpty else {
+        // 处理可能为null的comments数组
+        let comments = commentResult.comments ?? []
+        let danmakuParams = comments.compactMap { $0.parsedParams }
+        
+        guard !danmakuParams.isEmpty else {
             print("没有解析到弹幕数据")
             return
         }
@@ -24,15 +31,15 @@ extension VLCMediaPlayer {
         let subtitleURL = tempDir.appendingPathComponent(subtitleFileName)
         
         do {
-            // 将弹幕转换为字幕格式
-            let danmakuComments = comments.map { parsedComment in
+            // 将弹幕参数转换为DanmakuComment格式（为了兼容字幕转换器）
+            let danmakuComments = danmakuParams.map { params in
                 DanmakuComment(
-                    time: parsedComment.time,
-                    mode: parsedComment.mode,
+                    time: params.time,
+                    mode: params.mode,
                     fontSize: 25,
-                    colorValue: colorToInt(parsedComment.color),
-                    timestamp: Date().timeIntervalSince1970,
-                    content: parsedComment.content
+                    colorValue: Int(params.color),
+                    timestamp: params.time,
+                    content: params.content
                 )
             }
             
@@ -73,17 +80,6 @@ extension VLCMediaPlayer {
                 print("已启用弹幕字幕轨道: \(name) (索引: \(index))")
                 break
             }
-        }
-    }
-    
-    /// 直接加载XML弹幕文件作为字幕
-    /// - Parameter xmlURL: XML弹幕文件URL
-    func loadDanmakuXMLAsSubtitle(_ xmlURL: URL) {
-        do {
-            let xmlData = try Data(contentsOf: xmlURL)
-            loadDanmakuAsSubtitle(xmlData, format: .ass)
-        } catch {
-            print("加载XML弹幕文件失败: \(error)")
         }
     }
     
@@ -173,14 +169,6 @@ extension VLCMediaPlayer {
         }
         print("==================")
     }
-    
-    // MARK: - Helper Methods
-    
-    private func colorToInt(_ color: Color) -> Int {
-        // 简化的颜色转换，实际应该更精确
-        // 这里返回白色作为默认值
-        return 0xFFFFFF
-    }
 }
 
 /// 弹幕VLC集成助手
@@ -193,56 +181,9 @@ struct DanmakuVLCIntegration {
     ///   - enabled: 是否启用弹幕
     static func setupDanmaku(for player: VLCMediaPlayer, danmakuData: Data?, enabled: Bool) {
         if enabled, let data = danmakuData {
-            player.loadDanmakuAsSubtitle(data)
+            player.loadDanmakuAsSubtitle(data, format: .ass)
         } else {
             player.removeDanmakuSubtitle()
         }
-    }
-    
-    /// 从弹弹Play API数据创建标准弹幕XML
-    /// - Parameter apiData: API返回的数据
-    /// - Returns: 标准XML格式的弹幕数据
-    static func createStandardDanmakuXML(from apiData: Data) -> Data? {
-        let comments = DanmakuParser.parseComments(from: apiData)
-        
-        guard !comments.isEmpty else { return nil }
-        
-        var xmlContent = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <i>
-        <chatserver>chat.dandanplay.com</chatserver>
-        <chatid>0</chatid>
-        <mission>0</mission>
-        <maxlimit>8000</maxlimit>
-        <state>0</state>
-        <real_name>0</real_name>
-        <source>e-r</source>
-        
-        """
-        
-        for comment in comments {
-            let colorValue = colorToInt(comment.color)
-            let timestamp = Int(Date().timeIntervalSince1970)
-            let p = "\(comment.time),\(comment.mode),25,\(colorValue),\(timestamp),0,\(comment.userId),0"
-            xmlContent += "<d p=\"\(p)\">\(xmlEscaped(comment.content))</d>\n"
-        }
-        
-        xmlContent += "</i>"
-        
-        return xmlContent.data(using: .utf8)
-    }
-    
-    private static func colorToInt(_ color: Color) -> Int {
-        // 简化实现，返回白色
-        return 0xFFFFFF
-    }
-    
-    private static func xmlEscaped(_ string: String) -> String {
-        return string
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "'", with: "&#39;")
     }
 }

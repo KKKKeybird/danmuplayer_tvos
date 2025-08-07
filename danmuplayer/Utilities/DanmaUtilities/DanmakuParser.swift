@@ -19,6 +19,22 @@ struct DanmakuParser {
     static func parseComments(from data: Data) -> [ParsedComment] {
         return parseJSONComments(from: data)
     }
+    
+    /// 从弹弹Play API响应直接解析为DanmakuParams数组
+    /// - Parameter data: API返回的JSON数据
+    /// - Returns: 解析后的弹幕参数数组
+    static func parseCommentParams(from data: Data) -> [CommentData.DanmakuParams] {
+        guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: data) else {
+            print("无法解析弹幕JSON数据")
+            return []
+        }
+        
+        // 处理可能为null的comments数组
+        let comments = commentResult.comments ?? []
+        print("成功解析JSON弹幕数据，共 \(comments.count) 条")
+        
+        return comments.compactMap { $0.parsedParams }
+    }
     /// 解析JSON格式弹幕数据
     private static func parseJSONComments(from data: Data) -> [ParsedComment] {
         guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: data) else {
@@ -26,10 +42,16 @@ struct DanmakuParser {
             return []
         }
         
-        print("成功解析JSON弹幕数据，共 \(commentResult.comments.count) 条")
+        // 处理可能为null的comments数组
+        let comments = commentResult.comments ?? []
+        print("成功解析JSON弹幕数据，共 \(comments.count) 条")
         
-        return commentResult.comments.compactMap { comment in
-            parseComment(p: comment.p, m: comment.m)
+        return comments.compactMap { comment in
+            // 检查p和m字段是否为null
+            guard let p = comment.p, let m = comment.m else {
+                return nil
+            }
+            return parseComment(p: p, m: m)
         }
     }
     
