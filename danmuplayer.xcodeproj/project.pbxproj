@@ -32,8 +32,6 @@
 		0822C92F2E42440400609CE6 /* danmuplayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = danmuplayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0822C93C2E42440B00609CE6 /* danmuplayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = danmuplayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0822C9462E42440B00609CE6 /* danmuplayerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = danmuplayerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		085DA2B82E4465D200C638F5 /* verify_vlckit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = verify_vlckit.swift; sourceTree = "<group>"; };
-		085DA2B92E4465D200C638F5 /* VLCKit_Integration_Guide.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VLCKit_Integration_Guide.md; sourceTree = "<group>"; };
 		08B52A9E2E43926600D8EA9E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -72,8 +70,6 @@
 		0822C9262E42440300609CE6 = {
 			isa = PBXGroup;
 			children = (
-				085DA2B82E4465D200C638F5 /* verify_vlckit.swift */,
-				085DA2B92E4465D200C638F5 /* VLCKit_Integration_Guide.md */,
 				0822C9312E42440400609CE6 /* danmuplayer */,
 				0822C93F2E42440B00609CE6 /* danmuplayerTests */,
 				0822C9492E42440B00609CE6 /* danmuplayerUITests */,
