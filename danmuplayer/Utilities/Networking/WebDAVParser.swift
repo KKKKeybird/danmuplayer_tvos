@@ -13,7 +13,7 @@ class WebDAVParser: NSObject, XMLParserDelegate {
     private var webDAVItems: [WebDAVItem] = []
     private var isParsingResponse = false
     
-    /// 解析XML数据
+    // MARK: - 解析XML数据
     /// - Parameter data: XML数据
     /// - Returns: WebDAVItem数组
     func parseDirectoryResponse(_ data: Data) throws -> [WebDAVItem] {

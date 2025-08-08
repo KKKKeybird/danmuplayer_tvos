@@ -145,7 +145,7 @@ class JellyfinClient {
         }.resume()
     }
     
-    /// 用户认证
+    // MARK: - 用户认证
     func authenticate(completion: @escaping (Result<JellyfinUser, Error>) -> Void) {
         guard let username = username, let password = password else {
             print("Authentication failed: Missing username or password")
@@ -251,7 +251,7 @@ class JellyfinClient {
         }.resume()
     }
     
-    /// 获取媒体库列表
+    // MARK: - 获取媒体库列表
     func getLibraries(completion: @escaping (Result<[JellyfinLibrary], Error>) -> Void) {
         // 优先使用认证后获取的用户ID，否则使用初始化时的userId
         guard let currentUserId = authenticatedUserId ?? userId else {
@@ -318,7 +318,7 @@ class JellyfinClient {
         }.resume()
     }
     
-    /// 获取媒体库中的项目
+    // MARK: - 获取媒体库中的项目
     func getLibraryItems(libraryId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void) {
         guard let currentUserId = authenticatedUserId ?? userId else {
             print("Jellyfin: No user ID available for getLibraryItems")
@@ -414,7 +414,7 @@ class JellyfinClient {
         }.resume()
     }
     
-    /// 获取系列的季节列表
+    // MARK: - 获取系列的季节列表
     func getSeasons(seriesId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void) {
         guard let currentUserId = authenticatedUserId ?? userId else {
             print("Jellyfin: No user ID available for getSeasons")
@@ -505,7 +505,7 @@ class JellyfinClient {
         }.resume()
     }
     
-    /// 获取剧集列表
+    // MARK: - 获取剧集列表
     func getEpisodes(seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) {
         guard let currentUserId = authenticatedUserId ?? userId else {
             print("Jellyfin: No user ID available for getEpisodes")
@@ -592,7 +592,7 @@ class JellyfinClient {
         }.resume()
     }
     
-    /// 获取播放URL
+    // MARK: - 获取播放URL
     func getPlaybackUrl(itemId: String) -> URL? {
         guard let currentUserId = authenticatedUserId ?? userId else { 
             print("Jellyfin: No user ID available for getPlaybackUrl")
@@ -618,7 +618,7 @@ class JellyfinClient {
         return components?.url
     }
     
-    /// 获取图片URL
+    // MARK: - 获取图片URL
     func getImageUrl(itemId: String, type: String = "Primary", maxWidth: Int = 600) -> URL? {
         var components = URLComponents(url: serverURL.appendingPathComponent("Items/\(itemId)/Images/\(type)"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
@@ -684,7 +684,7 @@ class JellyfinClient {
         }.resume()
     }
     
-    /// 停止会话保持
+    // MARK: - 停止会话保持
     func stopSessionKeepAlive() {
         keepAliveTimer?.invalidate()
         keepAliveTimer = nil

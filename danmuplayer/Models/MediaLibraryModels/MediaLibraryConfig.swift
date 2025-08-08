@@ -29,9 +29,6 @@ struct MediaLibraryConfig: Codable, Identifiable {
     let apiKey: String? // Jellyfin API密钥
     let userId: String? // Jellyfin用户ID
     
-    // WebDAV专用字段
-    let isMediaLibrary: Bool // WebDAV是否作为媒体库使用（扫描模式）
-    
     init(id: UUID = UUID(), name: String, serverURL: String, 
          serverType: MediaLibraryServerType = .webdav,
          username: String? = nil, password: String? = nil,

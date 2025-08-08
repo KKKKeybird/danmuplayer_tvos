@@ -24,7 +24,7 @@ class WebDAVClient {
         )
     }
 
-    /// 发起请求获取目录文件列表
+    // MARK: - 发起请求获取目录文件列表
     /// - Parameters:
     ///   - path: 目录相对路径
     ///   - completion: 回调WebDAVItem数组或错误
@@ -161,7 +161,7 @@ class WebDAVClient {
         }.resume()
     }
 
-    /// 获取文件的流媒体URL
+    // MARK: - 获取文件的流媒体URL
     /// - Parameters:
     ///   - path: 文件路径
     ///   - completion: 返回可用于流媒体播放的URL或错误
@@ -247,7 +247,7 @@ class WebDAVClient {
         }
     }
     
-    /// 测试WebDAV连接
+    // MARK: - 测试WebDAV连接
     /// - Parameter completion: 返回连接是否成功
     func testConnection(completion: @escaping (Result<Bool, Error>) -> Void) {
         print("WebDAV: Testing connection to \(baseURL)")
@@ -310,6 +310,7 @@ class WebDAVClient {
     }
 }
 
+    // MARK: - 证书设置
 /// URLSessionDelegate to handle self-signed certificates and HTTP connections for WebDAV
 class WebDAVURLSessionDelegate: NSObject, URLSessionDelegate {
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {

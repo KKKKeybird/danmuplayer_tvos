@@ -55,7 +55,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         }
     }
     
-    /// 认证并加载媒体库
+    // MARK: - 认证并加载媒体库
     func authenticate() {
         guard !isAuthenticated else {
             loadLibraries()
@@ -156,19 +156,19 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         }
     }
     
-    /// 显示媒体库选择界面
+    // MARK: - 显示媒体库选择界面
     func showLibrarySelection() {
         showingLibrarySelection = true
     }
     
-    /// 选择媒体库并加载内容
+    // MARK: - 选择媒体库并加载内容
     func selectLibrary(_ library: JellyfinLibrary) {
         selectedLibrary = library
         currentLevel = .mediaItems
         loadMediaItems(from: library)
     }
     
-    /// 选择系列并加载季节
+    // MARK: - 选择系列并加载季节
     func selectSeries(_ series: JellyfinMediaItem) {
         selectedSeries = series
         if series.type == "Series" {
@@ -178,7 +178,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         // 电影播放现在通过UI层的统一逻辑处理，不再在ViewModel中直接处理
     }
     
-    /// 选择季节并加载剧集
+    // MARK: - 选择季节并加载剧集
     func selectSeason(_ season: JellyfinMediaItem) {
         selectedSeason = season
         currentLevel = .episodes
@@ -187,7 +187,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         }
     }
     
-    /// 返回上一级
+    // MARK: - 返回上一级
     func goBack() {
         switch currentLevel {
         case .libraries:
@@ -288,7 +288,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         }
     }
     
-    /// 刷新当前媒体库
+    // MARK: - 刷新当前媒体库
     func refresh() {
         switch currentLevel {
         case .libraries:
@@ -307,12 +307,12 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         }
     }
     
-    /// 获取媒体项目的海报图片URL
+    // MARK: - 获取媒体项目的海报图片URL
     func getImageUrl(for item: JellyfinMediaItem, type: String = "Primary", maxWidth: Int = 600) -> URL? {
         return client.getImageUrl(itemId: item.id, type: type, maxWidth: maxWidth)
     }
     
-    /// 创建统一的视频播放器视图模型
+    // MARK: - 创建统一的视频播放器视图模型
     func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel {
         // 使用统一播放器工厂创建Jellyfin播放器
         guard let playbackURL = client.getPlaybackUrl(itemId: item.id) else {
@@ -333,12 +333,12 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         return viewModel
     }
     
-    /// 获取剧集列表
+    // MARK: - 获取剧集列表
     func getEpisodes(for seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) {
         client.getEpisodes(seriesId: seriesId, completion: completion)
     }
     
-    /// 诊断连接问题
+    // MARK: - 诊断连接问题
     func diagnoseConnection() -> String {
         var diagnosis = "连接诊断信息:\n\n"
         diagnosis += "服务器地址: \(config.serverURL)\n"
@@ -361,7 +361,7 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         return diagnosis
     }
     
-    /// 执行详细的连接测试
+    // MARK: - 执行详细的连接测试
     @MainActor
     func performDetailedConnectionTest() async {
         isPerformingDetailedTest = true

@@ -4,8 +4,7 @@ import SwiftUI
 
 /// VLC播放器弹幕扩展
 extension VLCMediaPlayer {
-    
-    /// 加载弹幕作为额外字幕轨道（不影响原始字幕）
+    // MARK: - 加载弹幕作为额外字幕轨道（不影响原始字幕）
     /// - Parameters:
     ///   - danmakuData: 弹幕XML或JSON数据
     ///   - format: 字幕格式
@@ -82,8 +81,7 @@ extension VLCMediaPlayer {
             }
         }
     }
-    
-    /// 移除弹幕字幕（只移除弹幕，保留原有字幕）
+    // MARK: - 移除弹幕字幕（只移除弹幕，保留原有字幕）
     func removeDanmakuSubtitle() {
         // 记录当前的非弹幕字幕轨道
         let originalSubtitleTrack = getCurrentNonDanmakuSubtitleTrack()
@@ -136,8 +134,7 @@ extension VLCMediaPlayer {
         
         return nil
     }
-    
-    /// 切换弹幕字幕显示状态
+    // MARK: - 切换弹幕字幕显示状态
     func toggleDanmakuSubtitle(_ enabled: Bool, danmakuData: Data? = nil) {
         if enabled {
             if let data = danmakuData {
@@ -147,8 +144,7 @@ extension VLCMediaPlayer {
             removeDanmakuSubtitle()
         }
     }
-    
-    /// 获取所有字幕轨道信息（调试用）
+    // MARK: - 获取所有字幕轨道信息（调试用）
     func printSubtitleTracksInfo() {
         guard let trackIndexes = videoSubTitlesIndexes as? [Int] else {
             print("无法获取字幕轨道索引")

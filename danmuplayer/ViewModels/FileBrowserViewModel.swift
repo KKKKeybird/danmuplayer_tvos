@@ -29,7 +29,7 @@ class FileBrowserViewModel: ObservableObject {
         return (currentPath as NSString).lastPathComponent
     }
 
-    /// 加载指定路径目录文件列表
+    // MARK: - 加载指定路径目录文件列表
     func loadDirectory(path: String? = nil) {
         isLoading = true
         errorMessage = nil
@@ -56,7 +56,7 @@ class FileBrowserViewModel: ObservableObject {
         }
     }
 
-    /// 测试WebDAV连接
+    // MARK: - 测试WebDAV连接
     func testWebDAVConnection() {
         isLoading = true
         errorMessage = nil
@@ -79,7 +79,7 @@ class FileBrowserViewModel: ObservableObject {
         }
     }
 
-    /// 创建子目录的ViewModel
+    // MARK: - 创建子目录的ViewModel
     func createChildViewModel(for item: WebDAVItem) -> FileBrowserViewModel {
         // 正确构建子目录路径
         let childPath: String
@@ -98,26 +98,21 @@ class FileBrowserViewModel: ObservableObject {
             }
         }
         
-        print("FileBrowserViewModel: Creating child ViewModel")
-        print("FileBrowserViewModel: Current path: '\(currentPath)'")
-        print("FileBrowserViewModel: Item name: '\(item.name)', item path: '\(item.path)'")
-        print("FileBrowserViewModel: Child path: '\(childPath)'")
-        
         return FileBrowserViewModel(client: webDAVClient, path: childPath)
     }
 
-    /// 播放视频文件
+    // MARK: - 播放视频文件
     func playVideo(item: WebDAVItem) {
         selectedVideoItem = item
         showingVideoPlayer = true
     }
 
-    /// 获取视频文件的流媒体URL
+    // MARK: - 获取视频文件的流媒体URL
     func getVideoStreamingURL(for item: WebDAVItem, completion: @escaping (Result<URL, Error>) -> Void) {
         webDAVClient.getStreamingURL(for: item.path, completion: completion)
     }
 
-    /// 查找同目录下的字幕文件
+    // MARK: - 查找同目录下的字幕文件
     func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem] {
         let videoBaseName = (videoItem.name as NSString).deletingPathExtension
         let subtitleExtensions = ["srt", "ass", "ssa", "vtt"]
@@ -129,7 +124,7 @@ class FileBrowserViewModel: ObservableObject {
         }
     }
 
-    /// 支持文件排序（名称、日期、大小）
+    // MARK: - 支持文件排序（名称、日期、大小）
     func sortItems(by option: SortOption) {
         items = sortItems(items, by: option)
     }

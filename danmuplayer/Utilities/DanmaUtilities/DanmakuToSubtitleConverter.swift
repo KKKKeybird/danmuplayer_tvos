@@ -18,8 +18,7 @@ class DanmakuToSubtitleConverter {
         
         return srtContent
     }
-    
-    /// 将弹幕列表转换为ASS字幕格式（支持更丰富的样式）
+    // MARK: - 将弹幕列表转换为ASS字幕格式（支持更丰富的样式）
     static func convertToASS(_ comments: [DanmakuComment], videoWidth: Int = 1920, videoHeight: Int = 1080) -> String {
         var assContent = """
         [Script Info]
@@ -56,8 +55,7 @@ class DanmakuToSubtitleConverter {
         
         return assContent
     }
-    
-    /// 将弹幕缓存为本地字幕文件
+    // MARK: - 将弹幕缓存为本地字幕文件
     static func cacheDanmakuAsSubtitle(_ comments: [DanmakuComment], 
                                       format: SubtitleFormat, 
                                       episodeId: Int,
@@ -85,8 +83,7 @@ class DanmakuToSubtitleConverter {
         print("弹幕字幕已缓存到: \(fileURL.path)")
         return fileURL
     }
-    
-    /// 直接将弹幕保存为字幕文件（不缓存）
+    // MARK: - 直接将弹幕保存为字幕文件（不缓存）
     static func saveDanmakuAsSubtitle(_ comments: [DanmakuComment], 
                                      format: SubtitleFormat, 
                                      to url: URL) throws {
@@ -102,8 +99,7 @@ class DanmakuToSubtitleConverter {
         // 写入文件
         try content.write(to: url, atomically: true, encoding: .utf8)
     }
-    
-    /// 获取缓存的字幕文件URL
+    // MARK: - 获取缓存的字幕文件URL
     static func getCachedSubtitleURL(episodeId: Int, 
                                    episodeNumber: Int? = nil, 
                                    format: SubtitleFormat) -> URL? {
@@ -120,8 +116,7 @@ class DanmakuToSubtitleConverter {
         }
         return nil
     }
-    
-    /// 清除指定剧集的缓存字幕文件
+    // MARK: - 清除指定剧集的缓存字幕文件
     static func clearCachedSubtitles(episodeId: Int, episodeNumber: Int? = nil) {
         let cacheURL = getDanmakuSubtitleCacheDirectory()
         let fileManager = FileManager.default
@@ -137,8 +132,7 @@ class DanmakuToSubtitleConverter {
             }
         }
     }
-    
-    /// 清除所有缓存的字幕文件
+    // MARK: - 清除所有缓存的字幕文件
     static func clearAllCachedSubtitles() {
         let cacheURL = getDanmakuSubtitleCacheDirectory()
         let fileManager = FileManager.default
@@ -157,8 +151,7 @@ class DanmakuToSubtitleConverter {
             print("清除缓存字幕失败: \(error)")
         }
     }
-    
-    /// 获取缓存字幕文件的总大小
+    // MARK: - 获取缓存字幕文件的总大小
     static func getSubtitleCacheSize() -> Int64 {
         let cacheURL = getDanmakuSubtitleCacheDirectory()
         var totalSize: Int64 = 0

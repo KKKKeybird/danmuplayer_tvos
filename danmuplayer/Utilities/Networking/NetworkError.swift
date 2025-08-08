@@ -1,7 +1,7 @@
 /// 网络错误定义
 import Foundation
 
-/// 网络请求相关错误类型
+    // MARK: - 网络请求相关错误类型
 enum NetworkError: Error {
     case invalidURL
     case noData

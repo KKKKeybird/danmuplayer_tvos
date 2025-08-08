@@ -13,7 +13,7 @@ class MediaLibraryViewModel: ObservableObject {
         refreshLibraries()
     }
     
-    /// 刷新媒体库列表
+    // MARK: - 刷新媒体库列表
     func refreshLibraries() {
         let configs = configManager.configs
         mediaLibraries = configs.map { config in
@@ -25,14 +25,14 @@ class MediaLibraryViewModel: ObservableObject {
         }
     }
     
-    /// 删除媒体库
+    // MARK: - 删除媒体库
     func removeLibrary(withId id: UUID) {
         configManager.removeConfig(withId: id)
         refreshLibraries()
         connectionStatus.removeValue(forKey: id)
     }
     
-    /// 测试所有媒体库连接
+    // MARK: - 测试所有媒体库连接
     func testAllConnections() {
         connectionStatus.removeAll()
         
@@ -41,7 +41,7 @@ class MediaLibraryViewModel: ObservableObject {
         }
     }
     
-    /// 测试特定媒体库的连接
+    // MARK: - 测试特定媒体库的连接
     func testConnection(for libraryId: UUID) {
         guard let library = mediaLibraries.first(where: { $0.id == libraryId }) else {
             return
