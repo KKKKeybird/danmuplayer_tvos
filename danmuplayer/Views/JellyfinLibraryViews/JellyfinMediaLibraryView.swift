@@ -7,7 +7,6 @@ struct JellyfinMediaLibraryView: View {
     let config: MediaLibraryConfig
     @StateObject private var viewModel: JellyfinMediaLibraryViewModel
     @State private var selectedItem: JellyfinMediaItem?
-    @State private var showingVideoPlayer = false
     @State private var showingMediaDetail = false
     @State private var sortOption: SortOption = .recentlyWatched
     @State private var showingSortMenu = false
@@ -72,24 +71,11 @@ struct JellyfinMediaLibraryView: View {
         .refreshable {
             viewModel.refresh()
         }
-        .sheet(isPresented: $showingVideoPlayer) {
-            if let selectedItem = selectedItem {
-                // 使用新的简化播放器架构
-                NewJellyfinPlayerContainer(
-                    mediaItem: selectedItem,
-                    jellyfinClient: viewModel.jellyfinClient
-                )
-            }
-        }
         .sheet(isPresented: $showingMediaDetail) {
             if let selectedItem = selectedItem {
                 JellyfinMediaDetailView(
                     item: selectedItem, 
-                    viewModel: viewModel,
-                    onPlay: { item in
-                        self.selectedItem = item
-                        showingVideoPlayer = true
-                    }
+                    viewModel: viewModel
                 )
             }
         }
@@ -149,14 +135,7 @@ struct JellyfinMediaLibraryView: View {
                             item: item,
                             imageUrl: viewModel.getImageUrl(for: item),
                             onTap: {
-                                selectedItem = item
-                                if item.type == "Episode" || (item.type == "Movie" && item.runTimeTicks != nil) {
-                                    // 直接播放剧集或电影
-                                    showingVideoPlayer = true
-                                } else {
-                                    // 显示详情页面（用于电视剧系列）
-                                    showingMediaDetail = true
-                                }
+                                handleItemTap(item)
                             }
                         )
                     }
@@ -185,5 +164,15 @@ struct JellyfinMediaLibraryView: View {
                 )
             }
         }
+    }
+    
+    // MARK: - 播放逻辑处理
+    
+    private func handleItemTap(_ item: JellyfinMediaItem) {
+        selectedItem = item
+        
+        // 根据项目API设计：所有播放逻辑都在JellyfinMediaDetailView中处理
+        // 这里只负责显示详情页
+        showingMediaDetail = true
     }
 }

@@ -312,7 +312,37 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         return client.getImageUrl(itemId: item.id, type: type, maxWidth: maxWidth)
     }
     
-    // MARK: - 创建统一的视频播放器视图模型
+    // MARK: - 创建统一的视频播放器容器
+    func createVideoPlayerContainer(for item: JellyfinMediaItem, onDismiss: @escaping () -> Void) -> VLCPlayerContainer? {
+        // 使用VLCPlayerContainer工厂方法创建Jellyfin播放器
+        return VLCPlayerContainer.forJellyfin(
+            item: item,
+            client: client,
+            onDismiss: onDismiss
+        )
+    }
+    
+    // MARK: - 播放逻辑方法
+    
+    /// 判断媒体项目是否可以直接播放
+    /// 统一架构：只有Episode类型可以直接播放
+    func canPlayDirectly(_ item: JellyfinMediaItem) -> Bool {
+        return item.type == "Episode"
+    }
+    
+    /// 判断媒体项目是否需要显示详情页面
+    /// 统一架构：所有Series和Movie都显示详情页面（电影当作只有一季一集的剧集）
+    func shouldShowDetail(_ item: JellyfinMediaItem) -> Bool {
+        return item.type == "Series" || item.type == "Movie"
+    }
+    
+    /// 验证媒体项目是否可以播放（检查播放URL可用性）
+    func validatePlayability(for item: JellyfinMediaItem) -> Bool {
+        return client.getPlaybackUrl(itemId: item.id) != nil
+    }
+    
+    // MARK: - 创建统一的视频播放器视图模型 (保持兼容性)
+    @available(*, deprecated, message: "使用 createVideoPlayerContainer 替代")
     func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel {
         // 使用统一播放器工厂创建Jellyfin播放器
         guard let playbackURL = client.getPlaybackUrl(itemId: item.id) else {
@@ -336,6 +366,49 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
     // MARK: - 获取剧集列表
     func getEpisodes(for seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) {
         client.getEpisodes(seriesId: seriesId, completion: completion)
+    }
+    
+    // MARK: - 统一剧集结构：为电影创建虚拟剧集
+    func getEpisodesForUnifiedStructure(for item: JellyfinMediaItem, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) {
+        if item.type == "Movie" {
+            // 将电影包装为一个虚拟剧集（第1季第1集）
+            let movieAsEpisode = JellyfinEpisode(
+                id: item.id,
+                name: item.name,
+                serverId: item.serverId,
+                etag: item.etag,
+                dateCreated: item.dateCreated,
+                canDelete: item.canDelete,
+                canDownload: item.canDownload,
+                sortName: item.sortName,
+                type: "Episode", // 转换为Episode类型
+                locationType: item.locationType,
+                userData: item.userData,
+                productionYear: item.productionYear,
+                status: item.status,
+                endDate: item.endDate,
+                overview: item.overview,
+                communityRating: item.communityRating,
+                officialRating: item.officialRating,
+                runTimeTicks: item.runTimeTicks,
+                genres: item.genres,
+                tags: item.tags,
+                imageTags: item.imageTags,
+                seriesName: item.name, // 剧集名称使用电影名称
+                seriesId: item.id,
+                seasonId: item.id,
+                seasonName: "第一季",
+                indexNumber: 1, // 第1集
+                parentIndexNumber: 1, // 第1季
+                primaryImageAspectRatio: item.primaryImageAspectRatio
+            )
+            completion(.success([movieAsEpisode]))
+        } else if item.type == "Series" {
+            // 对于真正的剧集，调用原有方法
+            getEpisodes(for: item.id, completion: completion)
+        } else {
+            completion(.failure(NSError(domain: "JellyfinMediaLibraryViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "不支持的媒体类型: \(item.type)"])))
+        }
     }
     
     // MARK: - 诊断连接问题

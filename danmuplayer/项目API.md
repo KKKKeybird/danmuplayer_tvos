@@ -1,3 +1,18 @@
+# danmuplayer_tvos 项目API文档
+
+## 技术栈说明
+本项目使用以下主要技术栈：
+- **SwiftUI**: tvOS界面开发框架
+- **VLCKitSPM**: VLC媒体播放器核心库，用于视频解码和播放
+- **VLCUI**: VLC播放器的SwiftUI界面组件库，提供现代化的播放器UI
+- **Combine**: 响应式编程框架，用于数据绑定和状态管理
+
+## VLCUI集成说明
+项目中的视频播放器界面使用VLCUI库来提供统一的播放体验：
+- `VLCUIVideoPlayerView`: 主要的视频播放器SwiftUI视图组件
+- `VLCVideoPlayerUIView`: 底层UIKit包装的VLC播放器视图
+- 所有播放器相关的Overlay和控制组件都基于VLCUI进行构建
+
 # Utilities
 ```swift
 /// CacheUtilities
@@ -213,19 +228,36 @@ class XMLParserHelper {
 ```
 # Extensions
 ```swift
-/// VLCDanmakuExtensions
+/// VLCDanmakuExtensions (使用VLCUI增强)
 extension VLCMediaPlayer{
     // MARK: - 加载弹幕作为额外字幕轨道（不影响原始字幕）
     /// - Parameters:
     ///   - danmakuData: 弹幕XML或JSON数据
     ///   - format: 字幕格式
+    /// - Note: 基于VLCUI库的增强实现，提供更好的字幕管理
     func loadDanmakuAsSubtitle(_ danmakuData: Data, format: SubtitleFormat = .ass)
     // MARK: - 移除弹幕字幕（只移除弹幕，保留原有字幕）
+    /// - Note: 使用VLCUI的字幕轨道管理功能
     func removeDanmakuSubtitle()
     // MARK: - 切换弹幕字幕显示状态
+    /// - Parameters:
+    ///   - enabled: 是否启用弹幕
+    ///   - danmakuData: 弹幕数据（可选）
+    /// - Note: 利用VLCUI的动态字幕切换能力
     func toggleDanmakuSubtitle(_ enabled: Bool, danmakuData: Data? = nil)
     // MARK: - 获取所有字幕轨道信息（调试用）
+    /// - Note: 增强的调试信息，包含VLCUI相关状态
     func printSubtitleTracksInfo()
+}
+
+/// VLCUI组件扩展
+extension VLCUIVideoPlayerView {
+    // MARK: - 播放器视图配置
+    /// 配置VLCUI播放器的显示参数和回调
+    func configure(with url: URL, onReady: @escaping (VLCMediaPlayer) -> Void)
+    // MARK: - 状态监听设置
+    /// 设置播放状态的实时更新绑定
+    func setupPlayerStateUpdates(_ player: VLCMediaPlayer)
 }
 
 ```
@@ -590,17 +622,19 @@ struct WebDAVItem: Identifiable, Equatable {
 ```
 # ViewModels
 ```swift
-/// FileBrowserViewModel
+/// FileBrowserViewModel (增强VLCUI支持)
 class FileBrowserViewModel: ObservableObject {
     func loadDirectory(path: String? = nil) // 加载指定路径目录文件列表
     func testWebDAVConnection() // 测试WebDAV连接
     func createChildViewModel(for item: WebDAVItem) -> FileBrowserViewModel // 创建子目录的ViewModel
     func playVideo(item: WebDAVItem) // 播放视频文件
+    func createVideoPlayerContainer(for item: WebDAVItem, completion: @escaping (VLCPlayerContainer?) -> Void) // 创建基于VLCUI的视频播放器容器
     func getVideoStreamingURL(for item: WebDAVItem, completion: @escaping (Result<URL, Error>) -> Void) // 获取视频文件的流媒体URL
     func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem] // 查找同目录下的字幕文件
     func sortItems(by option: SortOption) // 支持文件排序（名称、日期、大小）
+    private func isVideoFile(_ fileName: String) -> Bool // 检查文件是否为视频文件
 }
-/// JellyfinMediaLibraryViewModel
+/// JellyfinMediaLibraryViewModel (增强VLCUI支持)
 class JellyfinMediaLibraryViewModel: ObservableObject{
     func authenticate() // MARK: - 认证并加载媒体库
     func showLibrarySelection() // MARK: - 显示媒体库选择界面
@@ -610,7 +644,9 @@ class JellyfinMediaLibraryViewModel: ObservableObject{
     func goBack() // MARK: - 返回上一级
     func refresh() // MARK: - 刷新当前媒体库
     func getImageUrl(for item: JellyfinMediaItem, type: String = "Primary", maxWidth: Int = 600) -> URL? // MARK: - 获取媒体项目的海报图片URL
-    func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel // MARK: - 创建统一的视频播放器视图模型
+    func createVideoPlayerContainer(for item: JellyfinMediaItem, onDismiss: @escaping () -> Void) -> VLCPlayerContainer? // MARK: - 创建基于VLCUI的视频播放器容器
+    @available(*, deprecated, message: "使用 createVideoPlayerContainer 替代")
+    func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel // MARK: - 创建统一的视频播放器视图模型 (已弃用)
     func getEpisodes(for seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) // MARK: - 获取剧集列表
     func diagnoseConnection() -> String // MARK: - 诊断连接问题
     func performDetailedConnectionTest() async // MARK: - 执行详细的连接测试
@@ -623,6 +659,28 @@ class MediaLibraryViewModel: ObservableObject {
     func testConnection(for libraryId: UUID) // MARK: - 测试特定媒体库的连接
 }
 ```
+# 统一媒体结构设计
+
+## 核心理念
+按照项目API的定义："将电影和剧集都处理为类剧集结构"，我们实现了统一的媒体处理架构：
+
+### 统一处理逻辑
+- **电影处理**: 电影被当作只有一季一集的剧集来处理
+- **剧集处理**: 保持原有的多季多集结构
+- **界面统一**: 所有媒体项目都使用相同的详情页和播放流程
+
+### 虚拟剧集创建
+通过 `getEpisodesForUnifiedStructure()` 方法：
+- 电影自动转换为 `Episode` 类型
+- 设置为第1季第1集 (`parentIndexNumber: 1, indexNumber: 1`)
+- 保持电影的所有元数据信息
+
+### 架构优势
+1. **统一体验**: 用户操作流程完全一致
+2. **代码简化**: 移除大量条件判断代码
+3. **易于维护**: 单一处理流程，减少bug产生
+4. **扩展性强**: 新增媒体类型只需适配统一结构
+
 # Views
 ## MediaLibraryViews
 ### MediaLibraryListView: 入口界面，可配置媒体库，进入媒体库
@@ -632,23 +690,79 @@ class MediaLibraryViewModel: ObservableObject {
 #### Overlays.SortSelectionOverlay: 排序方式选择浮窗
 #### Components.WebDAVStateViews: WebDAV库各类状态视图
 ## JellyfinLibraryViews
-### JellyfinLibraryViews: Jellyfin库界面，海报墙视图，显示选择的Jellyfin媒体库内所有文件，将电影和剧集都处理为类剧集结构，点击海报进入对应剧集结构的JellyfinMediaItemViews
+### JellyfinMediaLibraryView: Jellyfin库界面，海报墙视图
+- 显示选择的Jellyfin媒体库内所有文件，将电影和剧集都处理为类剧集结构
+- 点击海报进入对应的JellyfinMediaDetailView详情页面
+- 简化架构：移除直接播放逻辑，专注于媒体展示和导航功能
 #### Overlays.JellyfinSortSelectionOverlay: 排序方式选择浮窗
 #### Components.JellyfinAuthenticationView: Jellyfin认证视图
 #### Components.MediaItemCard: 海报卡片组件
 #### Components.StateViews: Jellyfin库各类状态视图
 ## JellyfinMediaItemViews
-### JellyfinMediaDetailView: Jellyfin媒体界面，剧集信息视图，上方显示背景和元数据，下方给出季节选项并在其下方横向显示对应剧集图片与标题，点击后传入视频原始文件名，视频流媒体Url和字幕Url进入播放界面；对于电影项目同样上方显示背景和元数据，下方显示电影的图片与标题，点击后传入视频原始文件名，视频流媒体Url和字幕Url进入播放界面
+### JellyfinMediaDetailView: Jellyfin媒体详情界面，直接负责播放逻辑调用
+- 剧集信息视图：上方显示背景和元数据，下方给出季节选项并在其下方横向显示对应剧集图片与标题
+- 直接播放调用：在详情页内直接处理播放逻辑，点击后传入视频原始文件名，视频流媒体Url和字幕Url进入播放界面  
+- 电影项目：上方显示背景和元数据，下方显示播放按钮，点击后直接进入播放界面
+- 架构优势：遵循单一职责原则，播放逻辑集中在媒体详情页，避免多层回调传递
 #### Components.EpisodeCard: Jellyfin媒体集卡片组件
-## PlayerViews
-### VLCPlayerContainer: 视频播放生成容器
-### VLCPlayerView: 播放器界面，接受视频原始文件名，视频Url和字幕Url，根据视频Url解析文件信息，进入后使用DanDanPlayAPI寻找字幕，加入到字幕轨中同时加载弹幕和字幕
-#### Overlays.DanmakuOverlayLayer: 弹幕显示覆盖层
-#### Overlays.InformationOverlay: 进度条覆盖层，配有视频音频轨选择按钮，字幕选择按钮，弹幕开关按钮，弹幕匹配按钮，弹幕设置按钮
-#### Overlays.SoundTrackOverlay: 音轨选择浮窗
-#### Overlays.SubTrackOverlay: 视频字幕选择浮窗
+## PlayerViews (基于VLCUI构建)
+### VLCPlayerContainer: 视频播放生成容器，负责创建和管理VLC播放器实例
+- 提供工厂方法为不同媒体源创建播放器
+- 集成错误处理和加载状态管理
+- 支持WebDAV、Jellyfin和本地文件播放
+### VLCPlayerView: 播放器界面，使用VLCUI库构建，接受视频原始文件名，视频Url和字幕Url，根据视频Url解析文件信息，进入后使用DanDanPlayAPI寻找字幕，加入到字幕轨中同时加载弹幕和字幕
+- 基于VLCUIVideoPlayerView构建现代化播放器界面
+- 集成弹幕系统和字幕管理
+- 支持实时播放状态监控和控制
+#### VLCUI组件:
+##### VLCUIVideoPlayerView: VLCUI主播放器SwiftUI视图组件
+##### VLCVideoPlayerUIView: 底层UIKit包装的VLC播放器视图，处理VLC播放器的底层交互
+#### Overlays.DanmakuOverlayLayer: 弹幕显示覆盖层，与VLCUI播放器协同工作
+#### Overlays.InformationOverlay: 进度条覆盖层，配有视频音频轨选择按钮，字幕选择按钮，弹幕开关按钮，弹幕匹配按钮，弹幕设置按钮，基于VLCUI的控制接口
+#### Overlays.SoundTrackOverlay: 音轨选择浮窗，利用VLCUI的音轨管理功能
+#### Overlays.SubTrackOverlay: 视频字幕选择浮窗，支持VLCUI的字幕轨道切换
 #### Overlays.DanmaSelecOverlay: 弹幕匹配浮窗，将当前播放视频Url传入DanDanPlayAPI获取全部剧集可能列表，用户选择后重新加载弹幕轨并播放
 #### Overlays.DanmaSettingOverlay: 弹幕设置浮窗，可以设置弹幕字体大小，速度，同屏最多弹幕密度，弹幕透明度
+
+# VLCUI集成架构说明
+
+## 播放器架构层级
+1. **VLCPlayerContainer**: 容器层，负责播放器实例的创建和生命周期管理
+2. **VLCPlayerView**: 主播放器视图，集成弹幕和控制逻辑
+3. **VLCUIVideoPlayerView**: VLCUI SwiftUI包装层
+4. **VLCVideoPlayerUIView**: UIKit底层播放器视图
+5. **VLCMediaPlayer**: VLC播放器核心
+
+## VLCUI优势
+- **现代化界面**: 基于SwiftUI的声明式UI设计
+- **状态管理**: 响应式的播放状态绑定
+- **扩展性**: 易于集成自定义控件和覆盖层
+- **性能**: 优化的渲染管线和内存管理
+- **兼容性**: 完全兼容VLCKitSPM的所有功能
+
+## 播放器工厂模式
+项目使用工厂模式创建不同类型的播放器：
+- `VLCPlayerContainer.forWebDAV()`: WebDAV媒体播放
+- `VLCPlayerContainer.forJellyfin()`: Jellyfin媒体播放  
+- `VLCPlayerContainer.forLocalFile()`: 本地文件播放
+
 # 交互跳转逻辑:
 MediaLibraryViews->WebDAVLibraryViews->PlayerViews
-MediaLibraryViews->JellyfinLibraryViews->JellyfinMediaItemViews->PlayerViews
+MediaLibraryViews->JellyfinLibraryViews->JellyfinMediaDetailView->PlayerViews
+
+# 播放逻辑架构说明
+
+## 设计原则
+按照项目API的定义，播放逻辑应该在各自的详情页面中直接调用，而不是通过回调传递：
+
+### WebDAV播放流程
+FileListView -> 直接调用播放器 -> PlayerViews
+
+### Jellyfin播放流程  
+JellyfinMediaLibraryView -> JellyfinMediaDetailView -> 直接调用播放器 -> PlayerViews
+
+## 架构优势
+1. **单一职责**: 每个视图专注于自己的核心功能
+2. **降低耦合**: 减少回调链，简化组件间依赖关系  
+3. **易于维护**: 播放逻辑集中管理，便于调试和扩展
+4. **符合API设计**: 严格遵循项目API文档的架构定义

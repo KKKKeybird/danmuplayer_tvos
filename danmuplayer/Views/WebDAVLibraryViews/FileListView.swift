@@ -48,10 +48,19 @@ struct FileListView: View {
                         } else {
                             Button(action: {
                                 if isVideoFile(item.name) {
-                                    // 使用ViewModel的方法来播放视频
-                                    viewModel.playVideo(item: item)
+                                    // 根据API要求：寻找字幕文件，传入视频原始文件名，视频流媒体Url和字幕Url进入播放界面
                                     selectedVideoItem = item
-                                    showingVideoPlayer = true
+                                    
+                                    // 使用增强的ViewModel方法创建播放器容器
+                                    viewModel.createVideoPlayerContainer(for: item) { container in
+                                        if let container = container {
+                                            // 设置播放器容器并显示
+                                            self.showingVideoPlayer = true
+                                        } else {
+                                            // 处理创建失败的情况
+                                            print("创建视频播放器容器失败")
+                                        }
+                                    }
                                 }
                             }) {
                                 HStack {
@@ -120,10 +129,9 @@ struct FileListView: View {
         }
         .sheet(isPresented: $showingVideoPlayer) {
             if let videoItem = selectedVideoItem {
-                videoPlayerViewWrapper(
+                VLCPlayerContainerWrapper(
                     videoItem: videoItem,
-                    subtitleFiles: viewModel.findSubtitleFiles(for: videoItem),
-                    webDAVClient: viewModel.client
+                    viewModel: viewModel
                 )
             }
         }
@@ -137,18 +145,92 @@ struct FileListView: View {
             if let newValue = newValue {
                 selectedVideoItem = newValue
             }
+    }
+}
+
+// MARK: - VLC播放器容器包装器
+@available(tvOS 17.0, *)
+struct VLCPlayerContainerWrapper: View {
+    let videoItem: WebDAVItem
+    let viewModel: FileBrowserViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var playerContainer: VLCPlayerContainer?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    
+    var body: some View {
+        ZStack {
+            if isLoading {
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Text("准备播放器...")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black)
+            } else if let errorMessage = errorMessage {
+                VStack(spacing: 20) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 50))
+                        .foregroundColor(.yellow)
+                    
+                    Text("播放错误")
+                        .font(.title)
+                        .foregroundColor(.white)
+                    
+                    Text(errorMessage)
+                        .font(.body)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    
+                    Button("返回") {
+                        dismiss()
+                    }
+                    .buttonStyle(BorderedProminentButtonStyle())
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black)
+            } else if let container = playerContainer {
+                container
+            }
+        }
+        .onAppear {
+            setupPlayerContainer()
         }
     }
     
-    private func videoPlayerViewWrapper(videoItem: WebDAVItem, subtitleFiles: [WebDAVItem], webDAVClient: WebDAVClient) -> some View {
-        NewWebDAVPlayerContainer(
-            videoItem: videoItem,
-            subtitleFiles: subtitleFiles,
-            webDAVClient: webDAVClient
-        )
-    }
-    
-    private func playVideo(item: WebDAVItem) {
+    private func setupPlayerContainer() {
+        // 获取流媒体URL和字幕文件
+        viewModel.getVideoStreamingURL(for: videoItem) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let streamingURL):
+                    // 查找字幕文件
+                    let subtitleFiles = viewModel.findSubtitleFiles(for: videoItem)
+                    
+                    // 创建VLC播放器容器
+                    let container = VLCPlayerContainer.forWebDAV(
+                        item: videoItem,
+                        streamingURL: streamingURL,
+                        subtitleFiles: subtitleFiles,
+                        onDismiss: {
+                            dismiss()
+                        }
+                    )
+                    
+                    self.playerContainer = container
+                    self.isLoading = false
+                    
+                case .failure(let error):
+                    self.errorMessage = "无法获取视频流: \(error.localizedDescription)"
+                    self.isLoading = false
+                }
+            }
+        }
+    }    private func playVideo(item: WebDAVItem) {
         selectedVideoItem = item
         showingVideoPlayer = true
     }

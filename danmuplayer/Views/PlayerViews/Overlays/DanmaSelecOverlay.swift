@@ -1,22 +1,24 @@
-/// 番剧识别列表选择页面
+/// 弹幕匹配浮窗
 import SwiftUI
 
-/// 番剧识别候选列表页面，供用户选择匹配的番剧
+/// 弹幕匹配浮窗，将当前播放视频Url传入DanDanPlayAPI获取全部剧集可能列表，用户选择后重新加载弹幕轨并播放
 @available(tvOS 17.0, *)
-struct SeriesSelectionView: View {
-    let seriesList: [DanDanPlayEpisode]
-    let onSelection: (DanDanPlayEpisode) -> Void
+struct DanmaSelecOverlay: View {
+    let candidateEpisodes: [DanDanPlayEpisode]
+    let videoURL: URL
+    let onEpisodeSelected: (DanDanPlayEpisode) -> Void
+    let onReloadDanmaku: (DanDanPlayEpisode) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationView {
             List {
-                if seriesList.isEmpty {
+                if candidateEpisodes.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "magnifyingglass")
                             .font(.largeTitle)
                             .foregroundStyle(.gray)
-                        Text("未找到匹配的番剧")
+                        Text("未找到匹配的弹幕")
                             .font(.headline)
                             .foregroundStyle(.secondary)
                         Text("请尝试重新搜索或手动输入番剧信息")
@@ -27,27 +29,28 @@ struct SeriesSelectionView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding()
                 } else {
-                    ForEach(seriesList) { series in
+                    ForEach(candidateEpisodes) { episode in
                         Button(action: {
-                            onSelection(series)
+                            onEpisodeSelected(episode)
+                            onReloadDanmaku(episode)
                         }) {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text(series.animeTitle)
+                                Text(episode.animeTitle)
                                     .font(.headline)
                                     .foregroundStyle(.primary)
                                     .multilineTextAlignment(.leading)
                                 
-                                Text(series.episodeTitle)
+                                Text(episode.episodeTitle)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.leading)
                                 
                                 HStack {
-                                    Text("动画ID: \(series.animeId)")
+                                    Text("动画ID: \(episode.animeId)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     Spacer()
-                                    Text("剧集ID: \(series.episodeId)")
+                                    Text("剧集ID: \(episode.episodeId)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -58,7 +61,8 @@ struct SeriesSelectionView: View {
                     }
                 }
             }
-            .navigationTitle("选择番剧")
+            .navigationTitle("选择弹幕匹配")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {

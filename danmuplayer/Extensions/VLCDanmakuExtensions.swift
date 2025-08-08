@@ -1,5 +1,6 @@
 import Foundation
 import VLCKitSPM
+import VLCUI
 import SwiftUI
 
 /// VLC播放器弹幕扩展

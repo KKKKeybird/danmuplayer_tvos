@@ -6,11 +6,12 @@ import SwiftUI
 struct JellyfinMediaDetailView: View {
     let item: JellyfinMediaItem
     let viewModel: JellyfinMediaLibraryViewModel
-    let onPlay: (JellyfinMediaItem) -> Void
     
     @State private var episodes: [JellyfinEpisode] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var selectedItem: JellyfinMediaItem?
+    @State private var showingVideoPlayer = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -25,15 +26,8 @@ struct JellyfinMediaDetailView: View {
                         overviewSection(overview)
                     }
                     
-                    // 剧集列表（仅电视剧显示）
-                    if item.type == "Series" {
-                        episodesSection
-                    }
-                    
-                    // 直接播放按钮（电影）
-                    if item.type == "Movie" {
-                        playButtonSection
-                    }
+                    // 统一的剧集列表显示（电影被当作只有一季一集的剧集）
+                    episodesSection
                 }
                 .padding(.horizontal, 40)
                 .padding(.vertical, 20)
@@ -47,10 +41,23 @@ struct JellyfinMediaDetailView: View {
                 }
             }
             .onAppear {
-                if item.type == "Series" {
-                    loadEpisodes()
-                }
+                // 统一加载剧集结构（电影被当作只有一季一集的剧集）
+                loadEpisodesForUnifiedStructure()
             }
+        }
+        .sheet(isPresented: $showingVideoPlayer) {
+            if let selectedItem = selectedItem {
+                // 直接在详情页调用播放器
+                JellyfinVideoPlayerWrapper(
+                    item: selectedItem,
+                    viewModel: viewModel,
+                    onDismiss: {
+                        showingVideoPlayer = false
+                        selectedItem = nil
+                    }
+                )
+            }
+        }
         }
     }
     
@@ -148,7 +155,7 @@ struct JellyfinMediaDetailView: View {
     
     private var episodesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("剧集")
+            Text(item.type == "Movie" ? "播放" : "剧集")
                 .font(.title2)
                 .fontWeight(.semibold)
             
@@ -167,7 +174,7 @@ struct JellyfinMediaDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                     Button("重试") {
-                        loadEpisodes()
+                        loadEpisodesForUnifiedStructure()
                     }
                     .buttonStyle(.bordered)
                 }
@@ -183,7 +190,7 @@ struct JellyfinMediaDetailView: View {
                         EpisodeCard(
                             episode: episode,
                             viewModel: viewModel,
-                            onPlay: onPlay
+                            onPlay: playItem
                         )
                     }
                 }
@@ -191,33 +198,28 @@ struct JellyfinMediaDetailView: View {
         }
     }
     
-    private var playButtonSection: some View {
-        Button(action: {
-            onPlay(item)
-        }) {
-            HStack {
-                Image(systemName: "play.fill")
-                    .font(.title2)
-                Text("播放")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(Color.purple)
-            .foregroundStyle(.white)
-            .cornerRadius(12)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-    
     // MARK: - 方法
     
-    private func loadEpisodes() {
+    /// 播放媒体项目
+    /// 根据项目API：点击后传入视频原始文件名，视频流媒体Url和字幕Url进入播放界面
+    private func playItem(_ mediaItem: JellyfinMediaItem) {
+        // 验证可播放性
+        guard viewModel.validatePlayability(for: mediaItem) else {
+            // 可以在这里显示错误提示
+            return
+        }
+        
+        // 设置要播放的项目
+        selectedItem = mediaItem
+        showingVideoPlayer = true
+    }
+    
+    /// 统一加载剧集结构（电影被当作只有一季一集的剧集）
+    private func loadEpisodesForUnifiedStructure() {
         isLoading = true
         errorMessage = nil
         
-        viewModel.getEpisodes(for: item.id) { result in
+        viewModel.getEpisodesForUnifiedStructure(for: item) { result in
             Task { @MainActor in
                 self.isLoading = false
                 switch result {

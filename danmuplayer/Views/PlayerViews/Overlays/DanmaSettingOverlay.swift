@@ -1,9 +1,9 @@
-/// 弹幕设置面板
+/// 弹幕设置浮窗
 import SwiftUI
 
-/// 弹幕设置面板，调节弹幕参数
+/// 弹幕设置浮窗，可以设置弹幕字体大小，速度，同屏最多弹幕密度，弹幕透明度
 @available(tvOS 17.0, *)
-struct DanmakuSettingsView: View {
+struct DanmaSettingOverlay: View {
     @Binding var settings: DanmakuSettings
     @Environment(\.dismiss) private var dismiss
 
@@ -103,6 +103,30 @@ struct DanmakuSettingsView: View {
                             Button("+") {
                                 if settings.maxCount < 100 {
                                     settings.maxCount = min(100, settings.maxCount + 10)
+                                }
+                            }
+                            .buttonStyle(BorderedButtonStyle())
+                        }
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        Text("弹幕密度: \(String(format: "%.0f", settings.density * 100))%")
+                        HStack {
+                            Button("-") {
+                                if settings.density > 0.1 {
+                                    settings.density = max(0.1, settings.density - 0.1)
+                                }
+                            }
+                            .buttonStyle(BorderedButtonStyle())
+                            
+                            Spacer()
+                            Text("\(String(format: "%.0f", settings.density * 100))%")
+                                .frame(minWidth: 50)
+                            Spacer()
+                            
+                            Button("+") {
+                                if settings.density < 1.0 {
+                                    settings.density = min(1.0, settings.density + 0.1)
                                 }
                             }
                             .buttonStyle(BorderedButtonStyle())

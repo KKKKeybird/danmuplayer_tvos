@@ -106,6 +106,41 @@ class FileBrowserViewModel: ObservableObject {
         selectedVideoItem = item
         showingVideoPlayer = true
     }
+    
+    // MARK: - 创建视频播放器容器
+    func createVideoPlayerContainer(for item: WebDAVItem, completion: @escaping (VLCPlayerContainer?) -> Void) {
+        guard isVideoFile(item.name) else {
+            completion(nil)
+            return
+        }
+        
+        // 获取流媒体URL
+        getVideoStreamingURL(for: item, completion: { result in
+            switch result {
+            case .success(let streamingURL):
+                // 查找字幕文件
+                let subtitleFiles = self.findSubtitleFiles(for: item)
+                
+                // 创建播放器容器
+                let container = VLCPlayerContainer.forWebDAV(
+                    item: item,
+                    streamingURL: streamingURL,
+                    subtitleFiles: subtitleFiles,
+                    onDismiss: {
+                        Task { @MainActor in
+                            self.showingVideoPlayer = false
+                            self.selectedVideoItem = nil
+                        }
+                    }
+                )
+                completion(container)
+                
+            case .failure(let error):
+                print("获取流媒体URL失败: \(error)")
+                completion(nil)
+            }
+        })
+    }
 
     // MARK: - 获取视频文件的流媒体URL
     func getVideoStreamingURL(for item: WebDAVItem, completion: @escaping (Result<URL, Error>) -> Void) {
@@ -149,6 +184,13 @@ class FileBrowserViewModel: ObservableObject {
         }
         
         return sortedDirectories + sortedFiles
+    }
+    
+    // MARK: - 辅助方法
+    
+    /// 检查文件是否为视频文件
+    private func isVideoFile(_ fileName: String) -> Bool {
+        return XMLParserHelper.isVideoFile(fileName: fileName)
     }
 
     enum SortOption {
