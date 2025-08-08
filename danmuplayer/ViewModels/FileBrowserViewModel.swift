@@ -107,40 +107,6 @@ class FileBrowserViewModel: ObservableObject {
         showingVideoPlayer = true
     }
     
-    // MARK: - 创建视频播放器容器（WebDAV字幕管理）
-    func createVideoPlayerContainer(for item: WebDAVItem, completion: @escaping (VLCPlayerContainer?) -> Void) {
-        guard isVideoFile(item.name) else {
-            completion(nil)
-            return
-        }
-        
-        // 获取流媒体URL
-        getVideoStreamingURL(for: item, completion: { result in
-            switch result {
-            case .success(let streamingURL):
-                // 查找所有字幕文件并转为URL数组
-                let subtitleFiles = self.findSubtitleFiles(for: item)
-                let subtitleURLs: [URL] = subtitleFiles.compactMap { self.constructWebDAVURL(for: $0) }
-                // 使用统一的创建方法
-                let container = VLCPlayerContainer.create(
-                    videoURL: streamingURL,
-                    originalFileName: item.name,
-                    subtitleURLs: subtitleURLs,
-                    onDismiss: {
-                        Task { @MainActor in
-                            self.showingVideoPlayer = false
-                            self.selectedVideoItem = nil
-                        }
-                    }
-                )
-                completion(container)
-                
-            case .failure(let error):
-                print("获取流媒体URL失败: \(error)")
-                completion(nil)
-            }
-        })
-    }
 
     // MARK: - 获取视频文件的流媒体URL
     func getVideoStreamingURL(for item: WebDAVItem, completion: @escaping (Result<URL, Error>) -> Void) {

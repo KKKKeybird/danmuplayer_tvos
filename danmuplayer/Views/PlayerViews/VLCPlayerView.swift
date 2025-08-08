@@ -93,23 +93,27 @@ struct VLCPlayerView: View {
                 )
             }
             
-            // 信息覆盖层
-            InformationOverlay(
-                isVisible: $isOverlayVisible,
-                currentTime: $currentTime,
-                duration: $duration,
-                isPlaying: $isPlaying,
-                currentOverlayType: $currentOverlayType,
-                vlcPlayer: vlcPlayer,
-                onSeek: handleSeek,
-                onPlayPause: handlePlayPause,
-                onShowAudioTracks: { showingAudioTrackOverlay = true },
-                onShowSubtitles: { showingSubtitleOverlay = true },
-                onToggleDanmaku: handleToggleDanmaku,
-                onShowDanmakuMatch: { showingDanmakuMatchOverlay = true },
-                onShowDanmakuSettings: { showingDanmakuSettingsOverlay = true },
-                onDismiss: onDismiss
-            )
+            // 信息覆盖层，默认隐藏，用户操作时滑入，超时或恢复播放后滑出
+            if isOverlayVisible {
+                InformationOverlay(
+                    isVisible: $isOverlayVisible,
+                    currentTime: $currentTime,
+                    duration: $duration,
+                    isPlaying: $isPlaying,
+                    currentOverlayType: $currentOverlayType,
+                    vlcPlayer: vlcPlayer,
+                    onSeek: handleSeek,
+                    onPlayPause: handlePlayPause,
+                    onShowAudioTracks: { showingAudioTrackOverlay = true },
+                    onShowSubtitles: { showingSubtitleOverlay = true },
+                    onToggleDanmaku: handleToggleDanmaku,
+                    onShowDanmakuMatch: { showingDanmakuMatchOverlay = true },
+                    onShowDanmakuSettings: { showingDanmakuSettingsOverlay = true },
+                    onDismiss: onDismiss
+                )
+                .transition(.move(edge: .bottom))
+                .animation(.easeInOut(duration: 0.3), value: isOverlayVisible)
+            }
             
             // 加载状态
             if viewModel.isLoading {
@@ -125,33 +129,41 @@ struct VLCPlayerView: View {
             }
         }
         .background(Color.black)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                .onChanged { _ in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isOverlayVisible = true
+                    }
+                    resetOverlayTimer()
+                }
+        )
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.3)) {
-                isOverlayVisible.toggle()
+                isOverlayVisible = true
             }
-            if isOverlayVisible {
-                resetOverlayTimer()
-            }
+            resetOverlayTimer()
         }
         .onPlayPauseCommand(perform: handlePlayPause)
         .onExitCommand(perform: onDismiss)
         
         // 浮窗展示
-        .sheet(isPresented: $showingAudioTrackOverlay) {
-            SoundTrackOverlay(
+        .popover(isPresented: $showingAudioTrackOverlay, arrowEdge: .bottom) {
+            SoundTrackPopover(
                 isPresented: $showingAudioTrackOverlay,
                 vlcPlayer: vlcPlayer
             )
         }
-        .sheet(isPresented: $showingSubtitleOverlay) {
-            SubTrackOverlay(
+        .popover(isPresented: $showingSubtitleOverlay, arrowEdge: .bottom) {
+            SubTrackPopover(
                 isPresented: $showingSubtitleOverlay,
                 vlcPlayer: vlcPlayer,
                 externalSubtitles: getExternalSubtitles()
             )
         }
-        .sheet(isPresented: $showingDanmakuMatchOverlay) {
-            DanmaSelecOverlay(
+        .popover(isPresented: $showingDanmakuMatchOverlay, arrowEdge: .bottom) {
+            DanmaSelectPopover(
                 candidateEpisodes: candidateEpisodes,
                 videoURL: videoURL,
                 onEpisodeSelected: { episode in
@@ -163,8 +175,8 @@ struct VLCPlayerView: View {
                 }
             )
         }
-        .sheet(isPresented: $showingDanmakuSettingsOverlay) {
-            DanmaSettingOverlay(settings: $danmakuSettings)
+        .popover(isPresented: $showingDanmakuSettingsOverlay, arrowEdge: .bottom) {
+            DanmaSettingPopover(settings: $danmakuSettings)
         }
     }
     
@@ -278,12 +290,19 @@ struct VLCPlayerView: View {
         
         if player.isPlaying {
             player.pause()
+            // 暂停时显示覆盖层
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isOverlayVisible = true
+            }
+            resetOverlayTimer()
         } else {
             player.play()
+            // 播放时隐藏覆盖层
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isOverlayVisible = false
+            }
         }
-        
         isPlaying = player.isPlaying
-        resetOverlayTimer()
     }
     
     private func handleToggleDanmaku() {
@@ -331,6 +350,7 @@ struct VLCPlayerView: View {
     }
     
     private func resetOverlayTimer() {
+        overlayTimer.stop()
         overlayTimer.start(interval: 5.0) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 isOverlayVisible = false

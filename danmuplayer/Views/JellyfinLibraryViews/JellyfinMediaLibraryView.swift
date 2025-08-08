@@ -156,9 +156,9 @@ struct JellyfinMediaLibraryView: View {
                 }
             }
             
-            // 排序选择覆盖层
-            if showingSortMenu {
-                JellyfinSortSelectionOverlay(
+            // 排序选择popover
+            .popover(isPresented: $showingSortMenu, arrowEdge: .top) {
+                JellyfinSortSelectionPopover(
                     isPresented: $showingSortMenu,
                     selectedOption: $sortOption
                 )

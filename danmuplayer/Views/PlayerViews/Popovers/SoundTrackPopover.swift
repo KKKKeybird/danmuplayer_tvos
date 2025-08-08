@@ -5,7 +5,7 @@ import VLCUI
 
 /// 音轨选择浮窗，显示可用的音频轨道供用户选择
 @available(tvOS 17.0, *)
-struct SoundTrackOverlay: View {
+struct SoundTrackPopover: View {
     @Binding var isPresented: Bool
     let vlcPlayer: VLCMediaPlayer?
     
@@ -19,67 +19,75 @@ struct SoundTrackOverlay: View {
     }
     
     var body: some View {
-        NavigationView {
-            List {
-                if audioTracks.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "speaker.slash")
-                            .font(.largeTitle)
-                            .foregroundStyle(.gray)
-                        Text("没有可用的音轨")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(Array(audioTracks.enumerated()), id: \.offset) { index, track in
-                        Button(action: {
-                            selectAudioTrack(index: track.index)
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(track.name)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-                                    
-                                    if let language = track.language {
-                                        Text(language)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            Text("选择音轨")
+                .font(.title2)
+                .fontWeight(.bold)
+                .padding(.top, 20)
+            Divider()
+            ScrollView {
+                VStack(spacing: 0) {
+                    if audioTracks.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "speaker.slash")
+                                .font(.largeTitle)
+                                .foregroundStyle(.gray)
+                            Text("没有可用的音轨")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                    } else {
+                        ForEach(Array(audioTracks.enumerated()), id: \ .offset) { index, track in
+                            Button(action: {
+                                selectAudioTrack(index: track.index)
+                            }) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(track.name)
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
+                                        if let language = track.language {
+                                            Text(language)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    if track.index == currentTrackIndex {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.blue)
+                                            .font(.title3)
                                     }
                                 }
-                                
-                                Spacer()
-                                
-                                if track.index == currentTrackIndex {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.blue)
-                                        .font(.title3)
-                                }
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 8)
+                                .background(track.index == currentTrackIndex ? Color.blue.opacity(0.08) : Color.clear)
+                                .cornerRadius(8)
                             }
-                            .contentShape(Rectangle())
+                            .buttonStyle(PlainButtonStyle())
                         }
-                        .buttonStyle(PlainButtonStyle())
                     }
                 }
+                .padding(20)
             }
-            .navigationTitle("选择音轨")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
-                        isPresented = false
-                    }
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Button("刷新") {
-                        loadAudioTracks()
-                    }
-                }
+            Divider()
+            HStack {
+                Spacer()
+                Button("关闭") { isPresented = false }
+                    .padding(.horizontal, 20)
+                Button("刷新") { loadAudioTracks() }
+                    .padding(.horizontal, 20)
+                Spacer()
             }
+            .padding(.vertical, 10)
         }
+        .frame(width: 420)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.systemBackground).opacity(0.98))
+                .shadow(radius: 16)
+        )
         .onAppear {
             loadAudioTracks()
         }
@@ -148,9 +156,9 @@ struct SoundTrackOverlay: View {
 
 #if DEBUG
 @available(tvOS 17.0, *)
-struct SoundTrackOverlay_Previews: PreviewProvider {
+struct SoundTrackPopover_Previews: PreviewProvider {
     static var previews: some View {
-        SoundTrackOverlay(
+        SoundTrackPopover(
             isPresented: .constant(true),
             vlcPlayer: nil
         )

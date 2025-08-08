@@ -115,11 +115,10 @@ struct InformationOverlay: View {
     
     private var bottomControlBar: some View {
         VStack(spacing: 16) {
-            // 进度条
-            progressSlider
-            
             // 播放控制
             playbackControls
+            // 进度条
+            progressSlider
         }
         .padding(.horizontal, 40)
         .padding(.bottom, 40)
@@ -165,6 +164,7 @@ struct InformationOverlay: View {
     
     private var playbackControls: some View {
         HStack(spacing: 40) {
+            Spacer()
             // 音频轨道选择
             Button(action: onShowAudioTracks) {
                 VStack(spacing: 4) {
@@ -266,13 +266,27 @@ struct ProgressSliderView: View {
         }
         .frame(height: 20)
         .focusable()
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity) { _ in
-            // 长按开始拖动
-        } onPressingChanged: { isPressing in
-            if isPressing {
-                onSeekStarted()
+            // 长按开始滑动，滑动时预览，点击确认跳转
+            .gesture(
+                LongPressGesture(minimumDuration: 0.2)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
+                    .onChanged { value in
+                        switch value {
+                        case .first(true):
+                            onSeekStarted()
+                        case .second(true, let drag?):
+                            let width = drag.location.x
+                            let percent = max(0, min(1, width / max(1, drag.startLocation.x == drag.location.x ? 1 : drag.startLocation.x == 0 ? 1 : drag.startLocation.x)))
+                            let newProgress = percent * duration
+                            onSeekChanged(newProgress)
+                        default:
+                            break
+                        }
+                    }
+            )
+            .onTapGesture {
+                // 点击时跳转到当前预览进度
+                onSeekEnded(scrubbingProgress > 0 ? scrubbingProgress : progress)
             }
-        }
-        // 这里需要添加手势处理逻辑
     }
 }

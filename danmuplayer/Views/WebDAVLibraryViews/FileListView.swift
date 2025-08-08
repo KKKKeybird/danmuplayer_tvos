@@ -48,19 +48,9 @@ struct FileListView: View {
                         } else {
                             Button(action: {
                                 if isVideoFile(item.name) {
-                                    // 根据API要求：寻找字幕文件，传入视频原始文件名，视频流媒体Url和字幕Url进入播放界面
+                                    // 直接设置选中视频并弹出播放器，由WebDAVVideoPlayerWrapper负责准备和展示
                                     selectedVideoItem = item
-                                    
-                                    // 使用增强的ViewModel方法创建播放器容器
-                                    viewModel.createVideoPlayerContainer(for: item) { container in
-                                        if let container = container {
-                                            // 设置播放器容器并显示
-                                            self.showingVideoPlayer = true
-                                        } else {
-                                            // 处理创建失败的情况
-                                            print("创建视频播放器容器失败")
-                                        }
-                                    }
+                                    showingVideoPlayer = true
                                 }
                             }) {
                                 HStack {
@@ -109,9 +99,9 @@ struct FileListView: View {
                 }
             }
             
-            // 排序选择覆盖层
-            if showingSortMenu {
-                SortSelectionOverlay(
+            // 排序选择popover
+            .popover(isPresented: $showingSortMenu, arrowEdge: .top) {
+                WebDAVSortSelectionPopover(
                     isPresented: $showingSortMenu,
                     selectedOption: $sortOption,
                     onSelectionChanged: { option in
@@ -129,7 +119,7 @@ struct FileListView: View {
         }
         .sheet(isPresented: $showingVideoPlayer) {
             if let videoItem = selectedVideoItem {
-                VLCPlayerContainerWrapper(
+                WebDAVVideoPlayerWrapper(
                     videoItem: videoItem,
                     viewModel: viewModel
                 )
@@ -145,131 +135,5 @@ struct FileListView: View {
             if let newValue = newValue {
                 selectedVideoItem = newValue
             }
-    }
-}
-
-// MARK: - VLC播放器容器包装器
-@available(tvOS 17.0, *)
-struct VLCPlayerContainerWrapper: View {
-    let videoItem: WebDAVItem
-    let viewModel: FileBrowserViewModel
-    @Environment(\.dismiss) private var dismiss
-    
-    @State private var playerContainer: VLCPlayerContainer?
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    
-    var body: some View {
-        ZStack {
-            if isLoading {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                    Text("准备播放器...")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black)
-            } else if let errorMessage = errorMessage {
-                VStack(spacing: 20) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 50))
-                        .foregroundColor(.yellow)
-                    
-                    Text("播放错误")
-                        .font(.title)
-                        .foregroundColor(.white)
-                    
-                    Text(errorMessage)
-                        .font(.body)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                    
-                    Button("返回") {
-                        dismiss()
-                    }
-                    .buttonStyle(BorderedProminentButtonStyle())
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black)
-            } else if let container = playerContainer {
-                container
-            }
-        }
-        .onAppear {
-            setupPlayerContainer()
-        }
-    }
-    
-    private func setupPlayerContainer() {
-        // 获取流媒体URL和字幕文件
-        viewModel.getVideoStreamingURL(for: videoItem) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let streamingURL):
-                    // 查找字幕文件
-                    let subtitleFiles = viewModel.findSubtitleFiles(for: videoItem)
-                    
-                    // 创建VLC播放器容器
-                    let container = VLCPlayerContainer.create(
-                        videoURL: streamingURL,
-                        originalFileName: videoItem.name,
-                        subtitleURL: subtitleFiles.first,
-                        onDismiss: {
-                            dismiss()
-                        }
-                    )
-                    
-                    self.playerContainer = container
-                    self.isLoading = false
-                    
-                case .failure(let error):
-                    self.errorMessage = "无法获取视频流: \(error.localizedDescription)"
-                    self.isLoading = false
-                }
-            }
-        }
-    }    private func playVideo(item: WebDAVItem) {
-        selectedVideoItem = item
-        showingVideoPlayer = true
-    }
-    
-    private func isVideoFile(_ filename: String) -> Bool {
-        let videoExtensions = ["mp4", "mkv", "avi", "mov", "wmv", "flv", "m4v", "webm"]
-        let ext = (filename as NSString).pathExtension.lowercased()
-        return videoExtensions.contains(ext)
-    }
-    
-    private func getFileIcon(for filename: String) -> String {
-        let ext = (filename as NSString).pathExtension.lowercased()
-        switch ext {
-        case "mp4", "mkv", "avi", "mov", "wmv", "flv", "m4v", "webm":
-            return "play.rectangle.fill"
-        case "srt", "ass", "ssa", "vtt":
-            return "doc.text.fill"
-        case "jpg", "jpeg", "png", "gif", "bmp":
-            return "photo.fill"
-        case "zip", "rar", "7z":
-            return "archivebox.fill"
-        default:
-            return "doc.fill"
-        }
-    }
-    
-    private func getFileColor(for filename: String) -> Color {
-        let ext = (filename as NSString).pathExtension.lowercased()
-        switch ext {
-        case "mp4", "mkv", "avi", "mov", "wmv", "flv", "m4v", "webm":
-            return .blue
-        case "srt", "ass", "ssa", "vtt":
-            return .green
-        case "jpg", "jpeg", "png", "gif", "bmp":
-            return .orange
-        case "zip", "rar", "7z":
-            return .purple
-        default:
-            return .gray
-        }
     }
 }

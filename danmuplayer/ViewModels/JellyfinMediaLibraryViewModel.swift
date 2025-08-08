@@ -355,43 +355,9 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
     
     // MARK: - 播放逻辑方法
     
-    /// 判断媒体项目是否可以直接播放
-    /// 统一架构：只有Episode类型可以直接播放
-    func canPlayDirectly(_ item: JellyfinMediaItem) -> Bool {
-        return item.type == "Episode"
-    }
-    
-    /// 判断媒体项目是否需要显示详情页面
-    /// 统一架构：所有Series和Movie都显示详情页面（电影当作只有一季一集的剧集）
-    func shouldShowDetail(_ item: JellyfinMediaItem) -> Bool {
-        return item.type == "Series" || item.type == "Movie"
-    }
-    
     /// 验证媒体项目是否可以播放（检查播放URL可用性）
     func validatePlayability(for item: JellyfinMediaItem) -> Bool {
         return client.getPlaybackUrl(itemId: item.id) != nil
-    }
-    
-    // MARK: - 创建统一的视频播放器视图模型 (保持兼容性)
-    @available(*, deprecated, message: "使用 createVideoPlayerContainer 替代")
-    func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel {
-        // 使用统一播放器工厂创建Jellyfin播放器
-        guard let playbackURL = client.getPlaybackUrl(itemId: item.id) else {
-            // 如果无法获取播放URL，返回基本的ViewModel并设置错误
-            let viewModel = VideoPlayerViewModel()
-            viewModel.errorMessage = "无法获取播放地址"
-            return viewModel
-        }
-        
-        // 使用统一的数据源适配器
-        let dataSource = JellyfinDataSource(
-            mediaItem: item,
-            videoURL: playbackURL
-        )
-        
-        let viewModel = VideoPlayerViewModel(dataSource: dataSource)
-        // dismiss 将在视图中设置
-        return viewModel
     }
     
     // MARK: - 获取剧集列表
@@ -440,29 +406,6 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         } else {
             completion(.failure(NSError(domain: "JellyfinMediaLibraryViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "不支持的媒体类型: \(item.type)"])))
         }
-    }
-    
-    // MARK: - 诊断连接问题
-    func diagnoseConnection() -> String {
-        var diagnosis = "连接诊断信息:\n\n"
-        diagnosis += "服务器地址: \(config.serverURL)\n"
-        
-        if let url = URL(string: config.serverURL) {
-            diagnosis += "协议: \(url.scheme ?? "未知")\n"
-            diagnosis += "主机: \(url.host ?? "未知")\n"
-            diagnosis += "端口: \(url.port?.description ?? "默认")\n"
-        }
-        
-        diagnosis += "\n可能的解决方案:\n"
-        diagnosis += "1. 检查服务器是否正在运行\n"
-        diagnosis += "2. 验证服务器地址是否正确\n"
-        diagnosis += "3. 确认网络连接正常\n"
-        diagnosis += "4. 检查防火墙设置\n"
-        diagnosis += "5. 如果使用 HTTPS，确认证书有效\n"
-        diagnosis += "6. 尝试在浏览器中访问该地址\n"
-        diagnosis += "7. 检查 Jellyfin 服务器是否允许外部连接"
-        
-        return diagnosis
     }
     
     // MARK: - 执行详细的连接测试

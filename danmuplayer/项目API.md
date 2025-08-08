@@ -17,124 +17,130 @@
 ```swift
 /// CacheUtilities
 //// JellyfinCache
-class JellyfinCache{
-    func cacheLibraryItems(_ items: [JellyfinMediaItem], for libraryId: String) // 缓存媒体库项目列表（30分钟）
-    func getCachedLibraryItems(for libraryId: String) -> [JellyfinMediaItem]? // 获取缓存的媒体库项目列表
-    func cacheEpisodeMetadata(_ episode: JellyfinEpisode) // 缓存单个剧集的元数据（1小时）
-    func getCachedEpisodeMetadata(for episodeId: String) -> JellyfinEpisode? // 获取缓存的剧集元数据
-    func batchCacheEpisodesMetadata(_ episodes: [JellyfinEpisode]) // 批量缓存剧集元数据（用于预缓存）
-    func cacheSeasons(_ seasons: [JellyfinMediaItem], for seriesId: String) // 缓存季节列表（1小时）
-    func getCachedSeasons(for seriesId: String) -> [JellyfinMediaItem]? // 获取缓存的季节列表
-    func cacheImage(_ image: UIImage, for imageURL: URL) // 缓存图片（7天）
-    func getCachedImage(for imageURL: URL) -> UIImage? // 获取缓存的图片
-    func clearAllCache() // 清理所有缓存
-    func getCacheSize() -> Int64 // 获取缓存大小
-    func clearLibraryItemsCache(for libraryId: String) // 清除特定媒体库项目的缓存
-    func clearEpisodeMetadataCache(for episodeId: String) // 清除特定剧集的元数据缓存
-    func clearSeriesEpisodesMetadataCache(for seriesId: String) // 清除特定系列的所有剧集元数据缓存
-    func clearSeasonsCache(for seriesId: String) // 清除特定季节的缓存
-}
-//// DanDanPlayCache
-class DanDanPlayCache{
-    func cacheASSSubtitle(_ assContent: String, for episodeId: Int) // 缓存ASS字幕文件（2小时）
-    func getCachedASSSubtitle(for episodeId: Int) -> String? // 获取缓存的ASS字幕内容
-    func cacheEpisodeInfo(_ episode: DanDanPlayEpisode, for fileurl: String) // 缓存剧集信息（长期缓存，7天）
-    func getCachedEpisodeInfo(for fileurl: String) -> DanDanPlayEpisode? // 获取缓存的剧集信息
-    func clearAllCache() // 清理所有缓存
-    func getCacheSize() -> Int64 // 获取弹幕数据缓存大小
-    func clearEpisodeCache(episodeId: Int, episodeNumber: Int? = nil) // 清理指定剧集的相关缓存（包括弹幕和ASS字幕）
-}
-//// CachedAsyncImage
-class AsyncImageLoader: ObservableObject {
-    /// 异步图片加载器，集成Jellyfin缓存
-    func updateURL(_ newURL: URL)
-    func load()
-    func cancel()
-}
-/// DanmaUtilities
-//// DanmakuParser
-struct DanmakuParser {
-    /// 解析的弹幕数据
-    struct ParsedComment {
-        let time: Double        // 出现时间（秒）
-        let mode: Int          // 弹幕模式：1-普通，4-底部，5-顶部
-        let color: Color       // 弹幕颜色
-        let userId: String     // 用户ID
-        let content: String    // 弹幕内容
+/// Jellyfin 媒体库和剧集多级缓存工具
+class JellyfinCache {
+    /// 缓存媒体库项目列表（30分钟）
+    func cacheLibraryItems(_ items: [JellyfinMediaItem], for libraryId: String)
+    /// 获取缓存的媒体库项目列表
+    func getCachedLibraryItems(for libraryId: String) -> [JellyfinMediaItem]?
+    /// 缓存单个剧集的元数据（1小时）
+    func cacheEpisodeMetadata(_ episode: JellyfinEpisode)
+    /// 获取缓存的剧集元数据
+    func getCachedEpisodeMetadata(for episodeId: String) -> JellyfinEpisode?
+    /// 批量缓存剧集元数据（用于预缓存）
+    func batchCacheEpisodesMetadata(_ episodes: [JellyfinEpisode])
+    /// 缓存季节列表（1小时）
+    func cacheSeasons(_ seasons: [JellyfinMediaItem], for seriesId: String)
+    /// 获取缓存的季节列表
+    func getCachedSeasons(for seriesId: String) -> [JellyfinMediaItem]?
+    /// 缓存图片（7天）
+    func cacheImage(_ image: UIImage, for imageURL: URL)
+    /// 获取缓存的图片
+    func getCachedImage(for imageURL: URL) -> UIImage?
+    /// 清理所有缓存
+    func clearAllCache()
+    /// 获取缓存大小（字节）
+    /// CacheUtilities
+    //// JellyfinCache
+    /// Jellyfin 媒体库和剧集多级缓存工具
+    class JellyfinCache {
+        static let shared: JellyfinCache
+        // 缓存媒体库项目列表（30分钟）
+        func cacheLibraryItems(_ items: [JellyfinMediaItem], for libraryId: String)
+        func getCachedLibraryItems(for libraryId: String) -> [JellyfinMediaItem]?
+        // 缓存单个剧集元数据（1小时）
+        func cacheEpisodeMetadata(_ episode: JellyfinEpisode)
+        func getCachedEpisodeMetadata(for episodeId: String) -> JellyfinEpisode?
+        // 批量缓存剧集元数据
+        func batchCacheEpisodesMetadata(_ episodes: [JellyfinEpisode])
+        // 缓存季节列表（1小时）
+        func cacheSeasons(_ seasons: [JellyfinMediaItem], for seriesId: String)
+        func getCachedSeasons(for seriesId: String) -> [JellyfinMediaItem]?
+        // 缓存图片（7天）
+        func cacheImage(_ image: UIImage, for imageURL: URL)
+        func getCachedImage(for imageURL: URL) -> UIImage?
+        // 清理所有缓存
+        func clearAllCache()
+        // 获取缓存大小（字节）
+        func getCacheSize() -> Int64
+        // 清除特定媒体库项目/剧集/系列/季节的缓存
+        func clearLibraryItemsCache(for libraryId: String)
+        func clearEpisodeMetadataCache(for episodeId: String)
+        func clearSeriesEpisodesMetadataCache(for seriesId: String)
+        func clearSeasonsCache(for seriesId: String)
     }
-    /// 从弹弹Play API响应解析弹幕数据（JSON格式）
-    /// - Parameter data: API返回的JSON数据
-    /// - Returns: 解析后的弹幕数组
-    static func parseComments(from data: Data) -> [ParsedComment]
-    /// 从弹弹Play API响应直接解析为DanmakuParams数组
-    /// - Parameter data: API返回的JSON数据
-    /// - Returns: 解析后的弹幕参数数组
+    /// 取消加载
+    /// 弹弹Play字幕和剧集信息缓存工具
+    class DanDanPlayCache {
+        static let shared: DanDanPlayCache
+        // 缓存ASS字幕内容（2小时）
+        func cacheASSSubtitle(_ assContent: String, for episodeId: Int)
+        func getCachedASSSubtitle(for episodeId: Int) -> String?
+        // 缓存剧集信息（7天）
+        func cacheEpisodeInfo(_ episode: DanDanPlayEpisode, for fileurl: String)
+        func getCachedEpisodeInfo(for fileurl: String) -> DanDanPlayEpisode?
+        // 清理所有缓存
+        func clearAllCache()
+        // 获取弹幕数据缓存大小（字节）
+        func getCacheSize() -> Int64
+        // 清理指定剧集的相关缓存（包括弹幕和ASS字幕）
+        func clearEpisodeCache(episodeId: Int, episodeNumber: Int? = nil)
+    }
     static func parseCommentParams(from data: Data) -> [CommentData.DanmakuParams]
-    /// 解析单条弹幕
-    /// - Parameters:
-    ///   - p: 弹幕参数字符串，格式：时间,模式,颜色,用户ID
-    ///   - m: 弹幕内容
-    /// - Returns: 解析后的弹幕对象
-    static func parseComment(p: String, m: String) -> ParsedComment?
-}
-//// DanmakuToSubtitleConverter
-class DanmakuToSubtitleConverter {
-    /// 将弹幕列表转换为ASS字幕格式（支持更丰富的样式）
-    static func convertToASS(_ comments: [DanmakuComment], videoWidth: Int = 1920, videoHeight: Int = 1080) -> String
-    /// 将弹幕缓存为本地字幕文件
-    static func cacheDanmakuAsSubtitle(_ comments: [DanmakuComment], 
-                                      format: SubtitleFormat, 
-                                      episodeId: Int,
-                                      episodeNumber: Int? = nil) throws -> URL
-    /// 直接将弹幕保存为字幕文件（不缓存）
-    static func saveDanmakuAsSubtitle(_ comments: [DanmakuComment], 
-                                     format: SubtitleFormat, 
-                                     to url: URL) throws
-    /// 获取缓存的字幕文件URL
-    static func getCachedSubtitleURL(episodeId: Int, 
-                                   episodeNumber: Int? = nil, 
-                                   format: SubtitleFormat) -> URL?
-    /// 清除指定剧集的缓存字幕文件
-    static func clearCachedSubtitles(episodeId: Int, episodeNumber: Int? = nil)
-    /// 清除所有缓存的字幕文件
+    /// 弹幕解析工具
+    struct DanmakuParser {
+        struct ParsedComment {
+            let time: Double
+            let mode: Int
+            let color: Color
+            let userId: String
+            let content: String
+        }
+        // 解析弹弹Play API响应为弹幕数组
+        static func parseComments(from data: Data) -> [ParsedComment]
+        // 解析API响应为DanmakuParams数组
+        static func parseCommentParams(from data: Data) -> [CommentData.DanmakuParams]
+        // 解析单条弹幕参数字符串
+        static func parseComment(p: String, m: String) -> ParsedComment?
+    }
     static func clearAllCachedSubtitles()
-    /// 获取缓存字幕文件的总大小
-    static func getSubtitleCacheSize() -> Int64
-    /// 从弹幕数据生成并缓存字幕文件（便捷方法）
-    static func generateAndCacheSubtitle(from danmakuData: Data, 
-                                       episodeId: Int, 
-                                       format: SubtitleFormat = .srt,
-                                       episodeNumber: Int? = nil) throws -> URL?
-}
-////VLCSubtitleTrackManager
-class VLCSubtitleTrackManager {
-    /// 安全地添加弹幕字幕轨道
-    func addDanmakuTrack(from danmakuData: Data, episodeId: Int, format: SubtitleFormat = .ass, episodeNumber: Int? = nil) -> Bool
-    /// 移除弹幕轨道，恢复原始字幕
-    func removeDanmakuTrack()
-    /// 从缓存的弹幕数据添加字幕轨道（便捷方法）
-    func addDanmakuTrackFromCache(episodeId: Int, format: SubtitleFormat = .ass, episodeNumber: Int? = nil) -> Bool
-    /// 切换弹幕显示状态
-    func toggleDanmaku(_ enabled: Bool, danmakuData: Data? = nil, episodeId: Int? = nil, episodeNumber: Int? = nil)
-    /// 获取字幕轨道调试信息
-    func getSubtitleTracksDebugInfo() -> String
-    /// 清理资源（在播放结束或切换视频时调用）
+    /// 弹幕转字幕及缓存工具
+    class DanmakuToSubtitleConverter {
+        // 弹幕转SRT字幕
+        static func convertToSRT(_ comments: [DanmakuComment]) -> String
+        // 弹幕转ASS字幕
+        static func convertToASS(_ comments: [DanmakuComment], videoWidth: Int = 1920, videoHeight: Int = 1080) -> String
+        // 弹幕缓存为本地字幕文件
+        static func cacheDanmakuAsSubtitle(_ comments: [DanmakuComment], format: SubtitleFormat, episodeId: Int, episodeNumber: Int? = nil) throws -> URL
+        // 直接保存弹幕为字幕文件
+        static func saveDanmakuAsSubtitle(_ comments: [DanmakuComment], format: SubtitleFormat, to url: URL) throws
+        // 获取缓存字幕文件URL
+        static func getCachedSubtitleURL(episodeId: Int, episodeNumber: Int? = nil, format: SubtitleFormat) -> URL?
+        // 清除指定剧集的缓存字幕文件
+        static func clearCachedSubtitles(episodeId: Int, episodeNumber: Int? = nil)
+        // 清除所有缓存的字幕文件
+        static func clearAllCachedSubtitles()
+        // 获取缓存字幕文件的总大小（字节）
+        static func getSubtitleCacheSize() -> Int64
+        // 从弹幕数据生成并缓存字幕文件（便捷方法）
+        static func generateAndCacheSubtitle(from danmakuData: Data, episodeId: Int, format: SubtitleFormat = .srt, episodeNumber: Int? = nil) throws -> URL?
+    }
     func cleanup()
-}
-//// DanDanPlayConfig
-struct DanDanPlayConfig {
-    static let appId: String = "YOUR_APP_ID"
-    private static let appSecret: String = "YOUR_APP_SECRET"
-    static var secretKey: String
-    /// 检查是否已配置API密钥
-    static var isConfigured: Bool
-    /// 验证配置有效性
-    /// - Returns: 配置状态和错误信息
-    static func validateConfiguration() -> (isValid: Bool, errorMessage: String?)
-}
-/// Networking
-//// DanDanPlayAPI
-class DanDanPlayAPI{
+    /// VLC 弹幕字幕轨道管理
+    class VLCSubtitleTrackManager {
+        // 添加弹幕字幕轨道（ASS）
+        func addDanmakuTrack(from danmakuData: Data, episodeId: Int, format: SubtitleFormat = .ass, episodeNumber: Int? = nil) -> Bool
+        // 移除弹幕轨道，恢复原始字幕
+        func removeDanmakuTrack()
+        // 从缓存添加弹幕字幕轨道
+        func addDanmakuTrackFromCache(episodeId: Int, format: SubtitleFormat = .ass, episodeNumber: Int? = nil) -> Bool
+        // 切换弹幕显示状态
+        func toggleDanmaku(_ enabled: Bool, danmakuData: Data? = nil, episodeId: Int? = nil, episodeNumber: Int? = nil)
+        // 获取字幕轨道调试信息
+        func getSubtitleTracksDebugInfo() -> String
+        // 清理资源（播放结束或切换视频时调用）
+        func cleanup()
+    }
     func identifyEpisode(for videoURL: URL, completion: @escaping (Result<DanDanPlayEpisode, Error>) -> Void) // 自动识别剧集（返回最佳匹配结果）
     func fetchCandidateEpisodeList(for videoURL: URL, completion: @escaping (Result<[DanDanPlayEpisode], Error>) -> Void) // 获取候选剧集列表供用户手动选择
     func loadDanmakuAsASS(for episode: DanDanPlayEpisode, completion: @escaping (Result<String, Error>) -> Void) // 加载弹幕并转换为ASS格式（新版简化API）
@@ -172,181 +178,170 @@ class WebDAVClient{
     ///   - completion: 回调WebDAVItem数组或错误
     func fetchDirectory(at path: String, completion: @escaping (Result<[WebDAVItem], Error>) -> Void)
     // MARK: - 获取文件的流媒体URL
-    /// - Parameters:
-    ///   - path: 文件路径
-    ///   - completion: 返回可用于流媒体播放的URL或错误
-    func getStreamingURL(for path: String, completion: @escaping (Result<URL, Error>) -> Void)
-    // MARK: - 测试WebDAV连接
-    /// - Parameter completion: 返回连接是否成功
-    func testConnection(completion: @escaping (Result<Bool, Error>) -> Void)
-}
-//// WebDAVParser
-class WebDAVParser: NSObject, XMLParserDelegate{
-    // MARK: - 解析XML数据
-    /// - Parameter data: XML数据
-    /// - Returns: WebDAVItem数组
-    func parseDirectoryResponse(_ data: Data) throws -> [WebDAVItem]
-    // MARK: - XMLParserDelegate
-    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:])
-    func parser(_ parser: XMLParser, foundCharacters string: String)
-    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?)
-}
-/// FileInfoExtractor
-struct FileInfoExtractor {
-    /// 文件匹配信息
-    struct FileMatchInfo {
-        let fileName: String
-        let fileHash: String
-        let fileSize: Int64
-        let videoDuration: Double // 视频时长（秒）
+    //// DanDanPlayAPI
+    class DanDanPlayAPI {
+        // 自动识别剧集（返回最佳匹配结果）
+        func identifyEpisode(for videoURL: URL, completion: @escaping (Result<DanDanPlayEpisode, Error>) -> Void)
+        // 获取候选剧集列表供用户手动选择
+        func fetchCandidateEpisodeList(for videoURL: URL, completion: @escaping (Result<[DanDanPlayEpisode], Error>) -> Void)
+        // 加载弹幕并转换为ASS格式
+        func loadDanmakuAsASS(for episode: DanDanPlayEpisode, completion: @escaping (Result<String, Error>) -> Void)
     }
-    /// 计算文件的MD5哈希值
+    func testConnection(completion: @escaping (Result<Bool, Error>) -> Void)
+    //// JellyfinClient
+    class JellyfinClient {
+        let serverURL: URL
+        let apiKey: String?
+        let userId: String?
+        let username: String?
+        let password: String?
+        // 测试连接
+        func testConnection(completion: @escaping (Result<Bool, Error>) -> Void)
+        // 用户认证
+        func authenticate(completion: @escaping (Result<JellyfinUser, Error>) -> Void)
+        // 获取媒体库列表
+        func getLibraries(completion: @escaping (Result<[JellyfinLibrary], Error>) -> Void)
+        // 获取媒体库中的项目
+        func getLibraryItems(libraryId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void)
+        // 获取系列的季节列表
+        func getSeasons(seriesId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void)
+        // 获取剧集列表
+        func getEpisodes(seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void)
+        // 获取播放URL
+        func getPlaybackUrl(itemId: String) -> URL?
+        // 获取图片URL
+        func getImageUrl(itemId: String, type: String = "Primary", maxWidth: Int = 600) -> URL?
+        // 停止会话保持
+        func stopSessionKeepAlive()
+        // 强制刷新媒体库列表
+        func refreshLibraries(completion: @escaping (Result<[JellyfinLibrary], Error>) -> Void)
+        // 获取合并后的媒体库项目
+        func getMergedLibraryItems(serverId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void)
+        // 强制刷新媒体库项目
+        func refreshLibraryItems(libraryId: String, completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void)
+        // 强制刷新剧集列表
+        func refreshEpisodes(seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void)
+        // 获取单个剧集的详细信息
+        func getEpisodeDetails(episodeId: String, completion: @escaping (Result<JellyfinEpisode, Error>) -> Void)
+        // 从缓存中快速获取剧集元数据
+        func getCachedEpisodeMetadata(episodeId: String) -> JellyfinEpisode?
+        // 获取媒体项的可用字幕列表
+        func getSubtitleTracks(for itemId: String, completion: @escaping (Result<[JellyfinSubtitleTrack], Error>) -> Void)
+        // 获取指定字幕轨道的字幕URL
+        func getSubtitleURL(for itemId: String, subtitleIndex: Int, format: String) -> URL?
+        // 获取推荐的字幕轨道
+        func getRecommendedSubtitleURL(for itemId: String, completion: @escaping (URL?) -> Void)
+        // 获取并缓存ASS字幕文件
+        func getAndCacheASSSubtitle(for itemId: String, completion: @escaping (URL?) -> Void)
+    }
     /// DanDanPlay API要求使用文件前16MB的MD5哈希
-    static func calculateFileHash(for url: URL) -> String?
-    /// 获取文件大小
-    static func getFileSize(for url: URL) -> Int64?
-    /// 获取视频时长
-    static func getVideoDuration(for url: URL) -> Double?
-    /// 提取文件的完整匹配信息
-    static func extractFileInfo(from url: URL) -> FileMatchInf
-}
-/// XMLParserHelper
-class XMLParserHelper {
-    /// 从WebDAV PROPFIND响应中提取资源类型
-    static func extractResourceType(from xmlString: String) -> Bool
-    /// 解析WebDAV日期格式
-    static func parseWebDAVDate(_ dateString: String) -> Date?
-    /// 清理和解码URL路径
+    //// WebDAVClient
+    class WebDAVClient {
+        let baseURL: URL
+        let credentials: Credentials?
+        // 获取目录文件列表
+        func fetchDirectory(at path: String, completion: @escaping (Result<[WebDAVItem], Error>) -> Void)
+        // 获取文件的流媒体URL
+        func getStreamingURL(for path: String, completion: @escaping (Result<URL, Error>) -> Void)
+        // 测试WebDAV连接
+        func testConnection(completion: @escaping (Result<Bool, Error>) -> Void)
+    }
     static func cleanPath(_ path: String) -> String
-    /// 从href路径中提取文件名
-    static func extractFileName(from href: String) -> String
-    /// 验证XML元素是否为有效的WebDAV响应项（只保留目录和视频文件）
-    static func isValidWebDAVItem(href: String, displayName: String, isDirectory: Bool = false) -> Bool
-    /// 检查文件是否为视频文件
-    static func isVideoFile(fileName: String) -> Bool
-    /// 解析文件大小字符串
-    static func parseFileSize(_ sizeString: String) -> Int64?
-    /// 获取支持的视频文件扩展名列表（用于调试或UI显示）
-    static func getSupportedVideoExtensions() -> [String]
+    //// WebDAVParser
+    class WebDAVParser: NSObject, XMLParserDelegate {
+        // 解析XML数据为WebDAVItem数组
+        func parseDirectoryResponse(_ data: Data) throws -> [WebDAVItem]
+        // XMLParserDelegate实现
+        func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String])
+        func parser(_ parser: XMLParser, foundCharacters string: String)
+        func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?)
+    }
 }
-
-```
-# Extensions
-```swift
-/// VLCDanmakuExtensions (使用VLCUI增强)
-extension VLCMediaPlayer{
-    // MARK: - 加载弹幕作为额外字幕轨道（不影响原始字幕）
-    /// - Parameters:
-    ///   - danmakuData: 弹幕XML或JSON数据
-    ///   - format: 字幕格式
-    /// - Note: 基于VLCUI库的增强实现，提供更好的字幕管理
-    func loadDanmakuAsSubtitle(_ danmakuData: Data, format: SubtitleFormat = .ass)
-    // MARK: - 移除弹幕字幕（只移除弹幕，保留原有字幕）
-    /// - Note: 使用VLCUI的字幕轨道管理功能
-    func removeDanmakuSubtitle()
-    // MARK: - 切换弹幕字幕显示状态
-    /// - Parameters:
-    ///   - enabled: 是否启用弹幕
+    struct FileInfoExtractor {
+        struct FileMatchInfo {
+            let fileName: String
+            let fileHash: String
+            let fileSize: Int64
+            let videoDuration: Double
+        }
+        // 计算文件前16MB的MD5哈希
+        static func calculateFileHash(for url: URL) -> String?
+        // 获取文件大小
+        static func getFileSize(for url: URL) -> Int64?
+        // 获取视频时长
+        static func getVideoDuration(for url: URL) -> Double?
+        // 提取完整文件匹配信息
+        static func extractFileInfo(from url: URL) -> FileMatchInfo?
+    }
     ///   - danmakuData: 弹幕数据（可选）
-    /// - Note: 利用VLCUI的动态字幕切换能力
-    func toggleDanmakuSubtitle(_ enabled: Bool, danmakuData: Data? = nil)
-    // MARK: - 获取所有字幕轨道信息（调试用）
-    /// - Note: 增强的调试信息，包含VLCUI相关状态
-    func printSubtitleTracksInfo()
-}
-
-/// VLCUI组件扩展
-extension VLCUIVideoPlayerView {
-    // MARK: - 播放器视图配置
-    /// 配置VLCUI播放器的显示参数和回调
-    func configure(with url: URL, onReady: @escaping (VLCMediaPlayer) -> Void)
-    // MARK: - 状态监听设置
-    /// 设置播放状态的实时更新绑定
-    func setupPlayerStateUpdates(_ player: VLCMediaPlayer)
-}
-
-```
+    class XMLParserHelper {
+        // 提取资源类型
+        static func extractResourceType(from xmlString: String) -> Bool
+        // 解析WebDAV日期格式
+        static func parseWebDAVDate(_ dateString: String) -> Date?
+        // 清理和解码URL路径
+        static func cleanPath(_ path: String) -> String
+        // 从href路径中提取文件名
+        static func extractFileName(from href: String) -> String
+        // 验证是否为有效WebDAV响应项
+        static func isValidWebDAVItem(href: String, displayName: String, isDirectory: Bool) -> Bool
+        // 检查文件是否为视频文件
+        static func isVideoFile(fileName: String) -> Bool
+        // 解析文件大小字符串
+        static func parseFileSize(_ sizeString: String) -> Int64?
+        // 获取支持的视频文件扩展名列表
+        static func getSupportedVideoExtensions() -> [String]
+    }
 # Models
 ```swift
 /// DanDanPlayModels
 //// DanDanPlayEpisode
 struct DanDanPlayEpisode: Identifiable, Codable {
-    /// 表示弹弹Play识别出的剧集信息
     let animeId: Int
     let animeTitle: String
     let episodeId: Int
     let episodeTitle: String
-    let shift: Double? // 弹幕偏移时间（秒），可为空
+    let shift: Double?
     var id: Int
     var displayTitle: String
 }
 //// DanmakuComment
 struct DanmakuComment: Codable, Identifiable {
-    let id = UUID()
-    let time: Double // 显示时间（秒）
-    let mode: Int // 弹幕类型：1-滚动，4-底部，5-顶部
-    let fontSize: Int // 字体大小
-    let colorValue: Int // 颜色值
-    let timestamp: TimeInterval // 发送时间戳
-    let content: String // 弹幕内容
-    enum CodingKeys: String, CodingKey{}
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        let pString = "\(time),\(mode),\(fontSize),\(colorValue),\(Int(timestamp))"
-        try container.encode(pString, forKey: .time)
-        try container.encode(content, forKey: .content)
-    }
-    /// 获取弹幕颜色
-    var color: Color
-    /// 判断是否为滚动弹幕
-    var isScrolling: Bool
-    /// 判断是否为顶部弹幕
-    var isTop: Bool
-    /// 判断是否为底部弹幕
-    var isBottom: Bool
+    let id: UUID = UUID()
+    let time: Double
+    let mode: Int
+    let fontSize: Int
+    let colorValue: Int
+    let timestamp: TimeInterval
+    let content: String
+    // ...编码实现与辅助属性...
 }
 struct DanmakuResponse: Codable {
     let count: Int
     let comments: [DanmakuComment]
 }
-/// JellyfinModels
 //// JellyfinLibraryConfig
 struct JellyfinLibraryConfig: Codable, Equatable {
-    let serverId: String // 服务器标识
-    var selectedLibraryIds: Set<String> // 选择显示的媒体库ID列表
+    let serverId: String
+    var selectedLibraryIds: Set<String>
     let lastUpdated: Date
     init(serverId: String, selectedLibraryIds: Set<String>)
-    /// 检查是否应该显示指定的媒体库
     func shouldShowLibrary(id: String) -> Bool
-    /// 获取选择的媒体库数量
     var selectedCount: Int
-    /// 添加媒体库到选择列表
     mutating func addLibrary(id: String)
-    /// 从选择列表移除媒体库
     mutating func removeLibrary(id: String)
-    /// 切换媒体库的选择状态
     mutating func toggleLibrary(id: String)
 }
 class JellyfinLibraryConfigManager: ObservableObject {
-    static let shared = JellyfinLibraryConfigManager()
-    @Published var configs: [String: JellyfinLibraryConfig] = [:]
-    private let userDefaults = UserDefaults.standard
-    private let configsKey = "JellyfinLibraryConfigs"
-    /// 获取指定服务器的配置
+    static let shared: JellyfinLibraryConfigManager
+    @Published var configs: [String: JellyfinLibraryConfig]
     func getConfig(for serverId: String) -> JellyfinLibraryConfig?
-    /// 保存指定服务器的配置
     func saveConfig(_ config: JellyfinLibraryConfig, for serverId: String)
-    /// 更新服务器的媒体库选择
     func updateSelectedLibraries(for serverId: String, selectedIds: Set<String>)
-    /// 获取选择的媒体库ID列表
     func getSelectedLibraryIds(for serverId: String) -> Set<String>
-    /// 检查是否应该显示指定的媒体库
     func shouldShowLibrary(id: String, for serverId: String) -> Bool
-    /// 过滤媒体库列表，只返回选择显示的媒体库
     func filterLibraries(_ libraries: [JellyfinLibrary], for serverId: String) -> [JellyfinLibrary]
-    /// 获取合并后的媒体库项目
-    func getMergedLibraryItems(from client: JellyfinClient,serverId: String,availableLibraries: [JellyfinLibrary],completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void)
-    /// 清除所有配置（用于测试或重置）
+    func getMergedLibraryItems(from client: JellyfinClient, serverId: String, availableLibraries: [JellyfinLibrary], completion: @escaping (Result<[JellyfinMediaItem], Error>) -> Void)
     func clearAllConfigs()
 }
 //// JellyfinModels
@@ -360,29 +355,14 @@ struct JellyfinUser: Codable {
     let enableAutoLogin: Bool?
     let lastLoginDate: String?
     let lastActivityDate: String?
-    enum CodingKeys: String, CodingKey {
-        case id = "Id"
-        case name = "Name"
-        case serverId = "ServerId"
-        case hasPassword = "HasPassword"
-        case hasConfiguredPassword = "HasConfiguredPassword"
-        case hasConfiguredEasyPassword = "HasConfiguredEasyPassword"
-        case enableAutoLogin = "EnableAutoLogin"
-        case lastLoginDate = "LastLoginDate"
-        case lastActivityDate = "LastActivityDate"
-    }
+    // ...CodingKeys省略...
 }
 struct JellyfinAuthResponse: Codable {
     let user: JellyfinUser
     let sessionInfo: JellyfinSessionInfo?
     let accessToken: String
     let serverId: String
-    enum CodingKeys: String, CodingKey {
-        case user = "User"
-        case sessionInfo = "SessionInfo"
-        case accessToken = "AccessToken"
-        case serverId = "ServerId"
-    }
+    // ...CodingKeys省略...
 }
 struct JellyfinSessionInfo: Codable {
     let playState: JellyfinPlayState?
@@ -405,28 +385,7 @@ struct JellyfinSessionInfo: Codable {
     let hasCustomDeviceName: Bool
     let serverId: String
     let supportedCommands: [String]
-    enum CodingKeys: String, CodingKey {
-        case playState = "PlayState"
-        case remoteEndPoint = "RemoteEndPoint"
-        case playableMediaTypes = "PlayableMediaTypes"
-        case id = "Id"
-        case userId = "UserId"
-        case userName = "UserName"
-        case client = "Client"
-        case lastActivityDate = "LastActivityDate"
-        case lastPlaybackCheckIn = "LastPlaybackCheckIn"
-        case deviceName = "DeviceName"
-        case deviceType = "DeviceType"
-        case nowPlayingItem = "NowPlayingItem"
-        case deviceId = "DeviceId"
-        case applicationVersion = "ApplicationVersion"
-        case isActive = "IsActive"
-        case supportsMediaControl = "SupportsMediaControl"
-        case supportsRemoteControl = "SupportsRemoteControl"
-        case hasCustomDeviceName = "HasCustomDeviceName"
-        case serverId = "ServerId"
-        case supportedCommands = "SupportedCommands"
-    }
+    // ...CodingKeys省略...
 }
 struct JellyfinPlayState: Codable {
     let canSeek: Bool
@@ -435,14 +394,7 @@ struct JellyfinPlayState: Codable {
     let repeatMode: String
     let positionTicks: Int64?
     let playbackStartTimeTicks: Int64?
-    enum CodingKeys: String, CodingKey {
-        case canSeek = "CanSeek"
-        case isPaused = "IsPaused"
-        case isMuted = "IsMuted"
-        case repeatMode = "RepeatMode"
-        case positionTicks = "PositionTicks"
-        case playbackStartTimeTicks = "PlaybackStartTimeTicks"
-    }
+    // ...CodingKeys省略...
 }
 struct JellyfinLibrary: Codable, Identifiable {
     let id: String
@@ -456,19 +408,7 @@ struct JellyfinLibrary: Codable, Identifiable {
     let collectionType: String?
     let type: String
     let locationType: String?
-    enum CodingKeys: String, CodingKey {
-        case id = "Id"
-        case name = "Name"
-        case serverId = "ServerId"
-        case etag = "Etag"
-        case dateCreated = "DateCreated"
-        case canDelete = "CanDelete"
-        case canDownload = "CanDownload"
-        case sortName = "SortName"
-        case collectionType = "CollectionType"
-        case type = "Type"
-        case locationType = "LocationType"
-    }
+    // ...CodingKeys省略...
 }
 struct JellyfinMediaItem: Codable, Identifiable {
     let id: String
@@ -499,40 +439,7 @@ struct JellyfinMediaItem: Codable, Identifiable {
     let indexNumber: Int?
     let parentIndexNumber: Int?
     let primaryImageAspectRatio: Double?
-    // 计算属性
-    var posterImageUrl: String?
-    var backdropImageUrl: String?
-    var duration: TimeInterval?
-    enum CodingKeys: String, CodingKey {
-        case id = "Id"
-        case name = "Name"
-        case serverId = "ServerId"
-        case etag = "Etag"
-        case dateCreated = "DateCreated"
-        case canDelete = "CanDelete"
-        case canDownload = "CanDownload"
-        case sortName = "SortName"
-        case type = "Type"
-        case locationType = "LocationType"
-        case userData = "UserData"
-        case productionYear = "ProductionYear"
-        case status = "Status"
-        case endDate = "EndDate"
-        case overview = "Overview"
-        case communityRating = "CommunityRating"
-        case officialRating = "OfficialRating"
-        case runTimeTicks = "RunTimeTicks"
-        case genres = "Genres"
-        case tags = "Tags"
-        case imageTags = "ImageTags"
-        case seriesName = "SeriesName"
-        case seriesId = "SeriesId"
-        case seasonId = "SeasonId"
-        case seasonName = "SeasonName"
-        case indexNumber = "IndexNumber"
-        case parentIndexNumber = "ParentIndexNumber"
-        case primaryImageAspectRatio = "PrimaryImageAspectRatio"
-    }
+    // ...计算属性和CodingKeys省略...
 }
 struct JellyfinUserData: Codable {
     let rating: Double?
@@ -543,16 +450,7 @@ struct JellyfinUserData: Codable {
     let isFavorite: Bool
     let played: Bool
     let key: String?
-    enum CodingKeys: String, CodingKey {
-        case rating = "Rating"
-        case playedPercentage = "PlayedPercentage"
-        case unplayedItemCount = "UnplayedItemCount"
-        case playbackPositionTicks = "PlaybackPositionTicks"
-        case playCount = "PlayCount"
-        case isFavorite = "IsFavorite"
-        case played = "Played"
-        case key = "Key"
-    }
+    // ...CodingKeys省略...
 }
 typealias JellyfinEpisode = JellyfinMediaItem
 struct JellyfinSubtitleTrack: Codable {
@@ -564,71 +462,44 @@ struct JellyfinSubtitleTrack: Codable {
     let isForced: Bool
     let isExternal: Bool
     let deliveryUrl: String?
-    enum CodingKeys: String, CodingKey {
-        case index = "Index"
-        case language = "Language"
-        case displayTitle = "DisplayTitle"
-        case codec = "Codec"
-        case isDefault = "IsDefault"
-        case isForced = "IsForced"
-        case isExternal = "IsExternal"
-        case deliveryUrl = "DeliveryUrl"
-    }
+    // ...CodingKeys省略...
 }
 struct JellyfinItemsResponse<T: Codable>: Codable {
     let items: [T]
     let totalRecordCount: Int
     let startIndex: Int
-    enum CodingKeys: String, CodingKey {
-        case items = "Items"
-        case totalRecordCount = "TotalRecordCount"
-        case startIndex = "StartIndex"
-    }
+    // ...CodingKeys省略...
 }
-/// MediaLibraryModels
 //// MediaLibraryConfig
 enum MediaLibraryServerType: String, Codable, CaseIterable {
     case webdav = "webdav"
     case jellyfin = "jellyfin"
-    var displayName: String
+    var displayName: String { get }
 }
 struct MediaLibraryConfig: Codable, Identifiable {
     let id: UUID
     let name: String
-    let serverURL: String // 服务器地址
-    let serverType: MediaLibraryServerType // 服务器类型
+    let serverURL: String
+    let serverType: MediaLibraryServerType
     let username: String?
     let password: String?
-    // Jellyfin专用字段
-    let apiKey: String? // Jellyfin API密钥
-    let userId: String? // Jellyfin用户ID
-    /// 创建对应类型的客户端
+    let apiKey: String?
+    let userId: String?
     func createClient() -> Any?
-    /// 创建WebDAV客户端
     func createWebDAVClient() -> WebDAVClient?
-    /// 创建Jellyfin客户端
     func createJellyfinClient() -> JellyfinClient?
-    // 保持向后兼容性
-    var baseURL: String { serverURL }
-    var isJellyfinServer: Bool { serverType == .jellyfin }
+    var baseURL: String { get }
+    var isJellyfinServer: Bool { get }
 }
-//// MediaLibraryConfigManager
 class MediaLibraryConfigManager: ObservableObject {
-    @Published var configs: [MediaLibraryConfig] = []
-    /// 从UserDefaults加载配置
+    @Published var configs: [MediaLibraryConfig]
     func loadConfigs()
-    /// 保存配置到UserDefaults
     func saveConfigs()
-    /// 添加新的媒体库配置
     func addConfig(_ config: MediaLibraryConfig)
-    /// 更新现有配置
     func updateConfig(_ config: MediaLibraryConfig)
-    /// 删除配置
     func removeConfig(withId id: UUID)
-    /// 验证配置的有效性
     func validateConfig(_ config: MediaLibraryConfig) -> Bool
 }
-/// WebDAVModels
 //// Credentials
 struct Credentials {
     let username: String
@@ -636,7 +507,7 @@ struct Credentials {
 }
 //// WebDAVItem
 struct WebDAVItem: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let path: String
     let isDirectory: Bool
@@ -647,42 +518,87 @@ struct WebDAVItem: Identifiable, Equatable {
 ```
 # ViewModels
 ```swift
-/// FileBrowserViewModel (增强VLCUI支持)
+/// FileBrowserViewModel
 class FileBrowserViewModel: ObservableObject {
-    func loadDirectory(path: String? = nil) // 加载指定路径目录文件列表
-    func testWebDAVConnection() // 测试WebDAV连接
-    func createChildViewModel(for item: WebDAVItem) -> FileBrowserViewModel // 创建子目录的ViewModel
-    func playVideo(item: WebDAVItem) // 播放视频文件
-    func createVideoPlayerContainer(for item: WebDAVItem, completion: @escaping (VLCPlayerContainer?) -> Void) // 创建基于VLCUI的视频播放器容器（WebDAV字幕管理）
-    func getVideoStreamingURL(for item: WebDAVItem, completion: @escaping (Result<URL, Error>) -> Void) // 获取视频文件的流媒体URL
-    func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem] // 查找同目录下的字幕文件
-    func sortItems(by option: SortOption) // 支持文件排序（名称、日期、大小）
-    private func isVideoFile(_ fileName: String) -> Bool // 检查文件是否为视频文件
+    @Published var items: [WebDAVItem]
+    @Published var isLoading: Bool
+    @Published var errorMessage: String?
+    @Published var showingVideoPlayer: Bool
+    @Published var selectedVideoItem: WebDAVItem?
+    var client: WebDAVClient { get }
+    var currentDirectoryName: String { get }
+    func loadDirectory(path: String? = nil)
+    func testWebDAVConnection()
+    func createChildViewModel(for item: WebDAVItem) -> FileBrowserViewModel
+    func playVideo(item: WebDAVItem)
+    func getVideoStreamingURL(for item: WebDAVItem, completion: @escaping (Result<URL, Error>) -> Void)
+    func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem]
+    func sortItems(by option: SortOption)
+    enum SortOption {
+        case name, date, size
+        var displayName: String { get }
+        var systemImage: String { get }
+    }
+    // private func sortItems(_ items: [WebDAVItem], by option: SortOption) -> [WebDAVItem]
+    // private func isVideoFile(_ fileName: String) -> Bool
+    // private func findBestSubtitleURL(for videoItem: WebDAVItem) -> URL?
+    // private func isSubtitleFile(_ fileName: String) -> Bool
+    // private func hasMatchingBaseName(videoFile: String, subtitleFile: String) -> Bool
+    // private func constructWebDAVURL(for item: WebDAVItem) -> URL?
 }
-/// JellyfinMediaLibraryViewModel (增强VLCUI支持)
-class JellyfinMediaLibraryViewModel: ObservableObject{
-    func authenticate() // MARK: - 认证并加载媒体库
-    func showLibrarySelection() // MARK: - 显示媒体库选择界面
-    func selectLibrary(_ library: JellyfinLibrary) // MARK: - 选择媒体库并加载内容
-    func selectSeries(_ series: JellyfinMediaItem) // MARK: - 选择系列并加载季节
-    func selectSeason(_ season: JellyfinMediaItem) // MARK: - 选择季节并加载剧集
-    func goBack() // MARK: - 返回上一级
-    func refresh() // MARK: - 刷新当前媒体库
-    func getImageUrl(for item: JellyfinMediaItem, type: String = "Primary", maxWidth: Int = 600) -> URL? // MARK: - 获取媒体项目的海报图片URL
-    func createVideoPlayerContainer(for item: JellyfinMediaItem, onDismiss: @escaping () -> Void) -> VLCPlayerContainer? // MARK: - 创建基于VLCUI的视频播放器容器（已移除，使用统一创建方法）
-    func prepareMediaForPlayback(item: JellyfinMediaItem, completion: @escaping (URL, URL?) -> Void) // 为播放准备媒体（包括获取并缓存ASS字幕）
-    @available(*, deprecated, message: "使用 createVideoPlayerContainer 替代")
-    func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel // MARK: - 创建统一的视频播放器视图模型 (已弃用)
-    func getEpisodes(for seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) // MARK: - 获取剧集列表
-    func diagnoseConnection() -> String // MARK: - 诊断连接问题
-    func performDetailedConnectionTest() async // MARK: - 执行详细的连接测试
+/// JellyfinMediaLibraryViewModel
+class JellyfinMediaLibraryViewModel: ObservableObject {
+    @Published var libraries: [JellyfinLibrary]
+    @Published var mediaItems: [JellyfinMediaItem]
+    @Published var seasons: [JellyfinMediaItem]
+    @Published var episodes: [JellyfinEpisode]
+    @Published var isLoading: Bool
+    @Published var errorMessage: String?
+    @Published var selectedLibrary: JellyfinLibrary?
+    @Published var selectedSeries: JellyfinMediaItem?
+    @Published var selectedSeason: JellyfinMediaItem?
+    @Published var currentLevel: BrowsingLevel
+    @Published var isAuthenticated: Bool
+    @Published var isPerformingDetailedTest: Bool
+    @Published var connectionTestResults: [String]
+    @Published var showingLibrarySelection: Bool
+    var jellyfinClient: JellyfinClient { get }
+    func authenticate()
+    func showLibrarySelection()
+    func selectLibrary(_ library: JellyfinLibrary)
+    func selectSeries(_ series: JellyfinMediaItem)
+    func selectSeason(_ season: JellyfinMediaItem)
+    func goBack()
+    func refresh()
+    func getImageUrl(for item: JellyfinMediaItem, type: String = "Primary", maxWidth: Int = 600) -> URL?
+    func prepareMediaForPlayback(item: JellyfinMediaItem, completion: @escaping (URL, [URL]) -> Void)
+    func validatePlayability(for item: JellyfinMediaItem) -> Bool
+    func getEpisodes(for seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void)
+    func getEpisodesForUnifiedStructure(for item: JellyfinMediaItem, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void)
+    func diagnoseConnection() -> String
+    func performDetailedConnectionTest() async
+    enum BrowsingLevel {
+        case libraries, series, seasons, episodes
+    }
+    // private func performAuthentication()
+    // private func loadLibraries()
+    // private func loadMergedMediaItems()
+    // private func loadMediaItems(from library: JellyfinLibrary)
+    // private func loadSeasons(for seriesId: String)
+    // private func loadEpisodes(for seriesId: String, seasonId: String? = nil)
+    // private func addTestResult(_ testName: String, test: () async throws -> String) async
 }
 /// MediaLibraryViewModel
 class MediaLibraryViewModel: ObservableObject {
-    func refreshLibraries() // MARK: - 刷新媒体库列表
-    func removeLibrary(withId id: UUID) // MARK: - 删除媒体库
-    func testAllConnections() // MARK: - 测试所有媒体库连接
-    func testConnection(for libraryId: UUID) // MARK: - 测试特定媒体库的连接
+    @Published var mediaLibraries: [MediaLibrary]
+    @Published var connectionStatus: [UUID: Bool]
+    func refreshLibraries()
+    func removeLibrary(withId id: UUID)
+    func testAllConnections()
+    func testConnection(for libraryId: UUID)
+    // private func testLibraryConnection(_ library: MediaLibrary) async -> Bool
+    // private func testWebDAVConnection(_ library: MediaLibrary) async -> Bool
+    // private func testJellyfinConnection(_ library: MediaLibrary) async -> Bool
 }
 ```
 # 统一媒体结构设计
@@ -713,14 +629,14 @@ class MediaLibraryViewModel: ObservableObject {
 #### Components.MediaLibraryConfig: 配置媒体库界面
 ## WebDAVLibraryViews:
 ### FileListView: WebDAV库界面，文件浏览器视图，可查看WebDAV内视频文件，点击视频文件后在视频文件附近寻找字幕文件，传入视频原始文件名，视频流媒体Url和字幕Url进入播放界面
-#### Overlays.SortSelectionOverlay: 排序方式选择浮窗
+#### Overlays.WebDAVSortSelectionPopover: 排序方式选择浮窗
 #### Components.WebDAVStateViews: WebDAV库各类状态视图
 ## JellyfinLibraryViews
 ### JellyfinMediaLibraryView: Jellyfin库界面，海报墙视图
 - 显示选择的Jellyfin媒体库内所有文件，将电影和剧集都处理为类剧集结构
 - 点击海报进入对应的JellyfinMediaDetailView详情页面
 - 简化架构：移除直接播放逻辑，专注于媒体展示和导航功能
-#### Overlays.JellyfinSortSelectionOverlay: 排序方式选择浮窗
+#### Overlays.JellyfinSortSelectionPopover: 排序方式选择浮窗
 #### Components.JellyfinAuthenticationView: Jellyfin认证视图
 #### Components.MediaItemCard: 海报卡片组件
 #### Components.StateViews: Jellyfin库各类状态视图
@@ -758,10 +674,10 @@ class MediaLibraryViewModel: ObservableObject {
 ##### VLCVideoPlayerUIView: 底层UIKit包装的VLC播放器视图，处理VLC播放器的底层交互
 #### Overlays.DanmakuOverlayLayer: 弹幕显示覆盖层，与VLCUI播放器协同工作
 #### Overlays.InformationOverlay: 进度条覆盖层，配有视频音频轨选择按钮，字幕选择按钮，弹幕开关按钮，弹幕匹配按钮，弹幕设置按钮，基于VLCUI的控制接口
-#### Overlays.SoundTrackOverlay: 音轨选择浮窗，利用VLCUI的音轨管理功能
-#### Overlays.SubTrackOverlay: 视频字幕选择浮窗，支持VLCUI的字幕轨道切换
-#### Overlays.DanmaSelecOverlay: 弹幕匹配浮窗，将当前播放视频Url传入DanDanPlayAPI获取全部剧集可能列表，用户选择后重新加载弹幕轨并播放
-#### Overlays.DanmaSettingOverlay: 弹幕设置浮窗，可以设置弹幕字体大小，速度，同屏最多弹幕密度，弹幕透明度
+#### Overlays.SoundTrackPopover: 音轨选择浮窗，利用VLCUI的音轨管理功能
+#### Overlays.SubTrackPopover: 视频字幕选择浮窗，支持VLCUI的字幕轨道切换
+#### Overlays.DanmaSelectPopover: 弹幕匹配浮窗，将当前播放视频Url传入DanDanPlayAPI获取全部剧集可能列表，用户选择后重新加载弹幕轨并播放
+#### Overlays.DanmaSettingPopover: 弹幕设置浮窗，可以设置弹幕字体大小，速度，同屏最多弹幕密度，弹幕透明度
 
 # VLCUI集成架构说明
 

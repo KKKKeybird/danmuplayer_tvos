@@ -5,7 +5,7 @@ import VLCUI
 
 /// 视频字幕选择浮窗，显示可用的字幕轨道供用户选择
 @available(tvOS 17.0, *)
-struct SubTrackOverlay: View {
+struct SubTrackPopover: View {
     @Binding var isPresented: Bool
     let vlcPlayer: VLCMediaPlayer?
     let externalSubtitles: [SubtitleFileInfo]
@@ -22,49 +22,49 @@ struct SubTrackOverlay: View {
     }
     
     var body: some View {
-        NavigationView {
-            List {
-                if subtitleTracks.isEmpty && externalSubtitles.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "captions.bubble")
-                            .font(.largeTitle)
-                            .foregroundStyle(.gray)
-                        Text("没有可用的字幕")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .listRowBackground(Color.clear)
-                } else {
-                    // 内嵌字幕轨道
-                    if !subtitleTracks.isEmpty {
-                        Section("内嵌字幕") {
-                            ForEach(Array(subtitleTracks.enumerated()), id: \.offset) { _, track in
+        VStack(spacing: 0) {
+            Text("选择字幕")
+                .font(.title2)
+                .fontWeight(.bold)
+                .padding(.top, 20)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if subtitleTracks.isEmpty && externalSubtitles.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "captions.bubble")
+                                .font(.largeTitle)
+                                .foregroundStyle(.gray)
+                            Text("没有可用的字幕")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                    } else {
+                        if !subtitleTracks.isEmpty {
+                            Text("内嵌字幕")
+                                .font(.headline)
+                                .padding(.top, 8)
+                            ForEach(Array(subtitleTracks.enumerated()), id: \ .offset) { _, track in
                                 subtitleTrackRow(track: track)
                             }
                         }
-                    }
-                    
-                    // 外部字幕文件
-                    if !externalSubtitles.isEmpty {
-                        Section("外部字幕") {
-                            ForEach(Array(externalSubtitles.enumerated()), id: \.offset) { index, subtitle in
+                        if !externalSubtitles.isEmpty {
+                            Text("外部字幕")
+                                .font(.headline)
+                                .padding(.top, 12)
+                            ForEach(Array(externalSubtitles.enumerated()), id: \ .offset) { index, subtitle in
                                 externalSubtitleRow(subtitle: subtitle, index: index)
                             }
                         }
-                    }
-                    
-                    // 禁用字幕选项
-                    Section {
+                        // 禁用字幕选项
                         Button(action: {
                             disableSubtitle()
                         }) {
                             HStack {
                                 Text("关闭字幕")
                                     .foregroundStyle(.primary)
-                                
                                 Spacer()
-                                
                                 if currentTrackIndex == -1 {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(.blue)
@@ -74,25 +74,28 @@ struct SubTrackOverlay: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .padding(.top, 12)
                     }
                 }
+                .padding(20)
             }
-            .navigationTitle("选择字幕")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
-                        isPresented = false
-                    }
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Button("刷新") {
-                        loadSubtitleTracks()
-                    }
-                }
+            Divider()
+            HStack {
+                Spacer()
+                Button("关闭") { isPresented = false }
+                    .padding(.horizontal, 20)
+                Button("刷新") { loadSubtitleTracks() }
+                    .padding(.horizontal, 20)
+                Spacer()
             }
+            .padding(.vertical, 10)
         }
+        .frame(width: 420)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.systemBackground).opacity(0.98))
+                .shadow(radius: 16)
+        )
         .onAppear {
             loadSubtitleTracks()
         }
@@ -267,9 +270,9 @@ struct SubtitleFileInfo {
 
 #if DEBUG
 @available(tvOS 17.0, *)
-struct SubTrackOverlay_Previews: PreviewProvider {
+struct SubTrackPopover_Previews: PreviewProvider {
     static var previews: some View {
-        SubTrackOverlay(
+        SubTrackPopover(
             isPresented: .constant(true),
             vlcPlayer: nil,
             externalSubtitles: [
