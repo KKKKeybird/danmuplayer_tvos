@@ -37,13 +37,17 @@ struct JellyfinVideoPlayerWrapper: View {
         isLoading = true
         errorMessage = nil
         
-        // 使用ViewModel的播放器容器创建方法
-        DispatchQueue.main.async {
-            if let container = viewModel.createVideoPlayerContainer(for: item, onDismiss: onDismiss) {
+        // 使用ViewModel预处理媒体和字幕，然后使用统一的创建方法
+        viewModel.prepareMediaForPlayback(item: item) { playbackURL, subtitleURLs in
+            DispatchQueue.main.async {
+                // 使用VLCPlayerContainer的统一创建方法
+                let container = VLCPlayerContainer.create(
+                    videoURL: playbackURL,
+                    originalFileName: self.item.name,
+                    subtitleURLs: subtitleURLs,
+                    onDismiss: self.onDismiss
+                )
                 self.playerContainer = container
-                self.isLoading = false
-            } else {
-                self.errorMessage = "无法创建播放器：播放URL不可用或网络连接问题"
                 self.isLoading = false
             }
         }

@@ -107,7 +107,7 @@ class FileBrowserViewModel: ObservableObject {
         showingVideoPlayer = true
     }
     
-    // MARK: - 创建视频播放器容器
+    // MARK: - 创建视频播放器容器（WebDAV字幕管理）
     func createVideoPlayerContainer(for item: WebDAVItem, completion: @escaping (VLCPlayerContainer?) -> Void) {
         guard isVideoFile(item.name) else {
             completion(nil)
@@ -118,14 +118,14 @@ class FileBrowserViewModel: ObservableObject {
         getVideoStreamingURL(for: item, completion: { result in
             switch result {
             case .success(let streamingURL):
-                // 查找字幕文件
+                // 查找所有字幕文件并转为URL数组
                 let subtitleFiles = self.findSubtitleFiles(for: item)
-                
-                // 创建播放器容器
-                let container = VLCPlayerContainer.forWebDAV(
-                    item: item,
-                    streamingURL: streamingURL,
-                    subtitleFiles: subtitleFiles,
+                let subtitleURLs: [URL] = subtitleFiles.compactMap { self.constructWebDAVURL(for: $0) }
+                // 使用统一的创建方法
+                let container = VLCPlayerContainer.create(
+                    videoURL: streamingURL,
+                    originalFileName: item.name,
+                    subtitleURLs: subtitleURLs,
                     onDismiss: {
                         Task { @MainActor in
                             self.showingVideoPlayer = false
@@ -148,14 +148,15 @@ class FileBrowserViewModel: ObservableObject {
     }
 
     // MARK: - 查找同目录下的字幕文件
+    /// 查找所有同目录下与视频相关的字幕文件（字幕文件名必须包含视频原始文件名，且扩展名为字幕类型）
     func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem] {
-        let videoBaseName = (videoItem.name as NSString).deletingPathExtension
+        let videoBaseName = (videoItem.name as NSString).deletingPathExtension.lowercased()
         let subtitleExtensions = ["srt", "ass", "ssa", "vtt"]
-        
         return items.filter { item in
-            !item.isDirectory && 
-            subtitleExtensions.contains((item.name as NSString).pathExtension.lowercased()) &&
-            item.name.lowercased().contains(videoBaseName.lowercased())
+            guard !item.isDirectory else { return false }
+            let ext = (item.name as NSString).pathExtension.lowercased()
+            let nameNoExt = (item.name as NSString).deletingPathExtension.lowercased()
+            return subtitleExtensions.contains(ext) && nameNoExt.contains(videoBaseName)
         }
     }
 
@@ -191,6 +192,79 @@ class FileBrowserViewModel: ObservableObject {
     /// 检查文件是否为视频文件
     private func isVideoFile(_ fileName: String) -> Bool {
         return XMLParserHelper.isVideoFile(fileName: fileName)
+    }
+    
+    /// 为WebDAV视频文件查找最佳字幕URL（由WebDAV ViewModel负责）
+    private func findBestSubtitleURL(for videoItem: WebDAVItem) -> URL? {
+        let subtitleFiles = findSubtitleFiles(for: videoItem)
+        return findBestSubtitleURL(for: videoItem.name, in: subtitleFiles)
+    }
+    
+    /// 查找匹配的字幕文件
+    private func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem] {
+        return currentItems.filter { item in
+            !item.isDirectory &&
+            isSubtitleFile(item.name) &&
+            hasMatchingBaseName(videoFile: videoItem.name, subtitleFile: item.name)
+        }
+    }
+    
+    /// 从字幕文件列表中选择最佳字幕URL
+    private func findBestSubtitleURL(for videoName: String, in subtitleFiles: [WebDAVItem]) -> URL? {
+        guard !subtitleFiles.isEmpty else { return nil }
+        
+        let videoBaseName = videoName.components(separatedBy: ".").first ?? videoName
+        
+        // 查找匹配的字幕文件
+        let matchingSubtitles = subtitleFiles.filter { subtitle in
+            let subtitleBaseName = subtitle.name.components(separatedBy: ".").first ?? subtitle.name
+            return subtitleBaseName.contains(videoBaseName) || videoBaseName.contains(subtitleBaseName)
+        }
+        
+        // 优先选择中文字幕
+        for subtitle in matchingSubtitles {
+            let fileName = subtitle.name.lowercased()
+            if fileName.contains("zh") || fileName.contains("chinese") || fileName.contains("中文") ||
+               fileName.contains("chs") || fileName.contains("cht") {
+                return constructWebDAVURL(for: subtitle)
+            }
+        }
+        
+        // 如果没有中文字幕，返回第一个匹配的字幕
+        if let firstSubtitle = matchingSubtitles.first {
+            return constructWebDAVURL(for: firstSubtitle)
+        }
+        
+        return nil
+    }
+    
+    /// 检查是否为字幕文件
+    private func isSubtitleFile(_ fileName: String) -> Bool {
+        let lowercaseName = fileName.lowercased()
+        return lowercaseName.hasSuffix(".srt") || lowercaseName.hasSuffix(".ass") ||
+               lowercaseName.hasSuffix(".vtt") || lowercaseName.hasSuffix(".sub")
+    }
+    
+    /// 检查视频文件和字幕文件是否有匹配的基础名称
+    private func hasMatchingBaseName(videoFile: String, subtitleFile: String) -> Bool {
+        let videoBaseName = videoFile.components(separatedBy: ".").dropLast().joined(separator: ".")
+        let subtitleBaseName = subtitleFile.components(separatedBy: ".").dropLast().joined(separator: ".")
+        
+        // 精确匹配或包含关系
+        return videoBaseName == subtitleBaseName ||
+               subtitleBaseName.contains(videoBaseName) ||
+               videoBaseName.contains(subtitleBaseName)
+    }
+    
+    /// 为WebDAV项目构造完整的URL
+    private func constructWebDAVURL(for item: WebDAVItem) -> URL? {
+        guard let config = config else { return nil }
+        
+        let baseURL = config.serverURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let itemPath = item.path.hasPrefix("/") ? item.path : "/" + item.path
+        let fullURLString = baseURL + itemPath
+        
+        return URL(string: fullURLString)
     }
 
     enum SortOption {

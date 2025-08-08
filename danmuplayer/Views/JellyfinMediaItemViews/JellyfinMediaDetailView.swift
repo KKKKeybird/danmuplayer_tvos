@@ -209,9 +209,20 @@ struct JellyfinMediaDetailView: View {
             return
         }
         
-        // 设置要播放的项目
-        selectedItem = mediaItem
-        showingVideoPlayer = true
+        // 先显示加载状态
+        isLoading = true
+        errorMessage = nil
+        
+        // 预处理媒体（包括获取字幕）
+        viewModel.prepareMediaForPlayback(item: mediaItem) { [weak self] playbackURL, subtitleURLs in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isLoading = false
+                // 设置要播放的项目
+                self.selectedItem = mediaItem
+                self.showingVideoPlayer = true
+            }
+        }
     }
     
     /// 统一加载剧集结构（电影被当作只有一季一集的剧集）

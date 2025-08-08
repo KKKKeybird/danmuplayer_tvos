@@ -9,7 +9,7 @@ struct VLCPlayerView: View {
     // MARK: - 输入参数
     let videoURL: URL
     let originalFileName: String
-    let subtitleURL: URL?
+    let subtitleURLs: [URL]
     let onDismiss: () -> Void
     
     // MARK: - State管理
@@ -48,10 +48,10 @@ struct VLCPlayerView: View {
     
     // MARK: - 初始化
     
-    init(videoURL: URL, originalFileName: String, subtitleURL: URL? = nil, onDismiss: @escaping () -> Void) {
+    init(videoURL: URL, originalFileName: String, subtitleURLs: [URL] = [], onDismiss: @escaping () -> Void) {
         self.videoURL = videoURL
         self.originalFileName = originalFileName
-        self.subtitleURL = subtitleURL
+        self.subtitleURLs = subtitleURLs
         self.onDismiss = onDismiss
         
         self._viewModel = StateObject(wrappedValue: VLCPlayerViewModel(
@@ -174,9 +174,9 @@ struct VLCPlayerView: View {
         viewModel.setupPlayer { player in
             self.vlcPlayer = player
             
-            // 加载外部字幕
-            if let subtitleURL = subtitleURL {
-                loadExternalSubtitle(url: subtitleURL)
+            // 加载所有外部字幕
+            for url in subtitleURLs {
+                loadExternalSubtitle(url: url)
             }
             
             // 启动覆盖层计时器
@@ -188,9 +188,9 @@ struct VLCPlayerView: View {
         // 设置播放器回调和状态监听
         vlcPlayer = player
         
-        // 加载外部字幕
-        if let subtitleURL = subtitleURL {
-            loadExternalSubtitle(url: subtitleURL)
+        // 加载所有外部字幕
+        for url in subtitleURLs {
+            loadExternalSubtitle(url: url)
         }
         
         // 启动覆盖层计时器
@@ -304,18 +304,15 @@ struct VLCPlayerView: View {
     
     private func getExternalSubtitles() -> [SubtitleFileInfo] {
         var subtitles: [SubtitleFileInfo] = []
-        
-        if let subtitleURL = subtitleURL {
-            let fileName = subtitleURL.lastPathComponent
+        for url in subtitleURLs {
+            let fileName = url.lastPathComponent
             let language = extractLanguageFromFileName(fileName)
-            
             subtitles.append(SubtitleFileInfo(
                 name: fileName,
-                url: subtitleURL,
+                url: url,
                 language: language
             ))
         }
-        
         return subtitles
     }
     

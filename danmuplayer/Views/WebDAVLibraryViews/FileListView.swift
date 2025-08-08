@@ -212,10 +212,10 @@ struct VLCPlayerContainerWrapper: View {
                     let subtitleFiles = viewModel.findSubtitleFiles(for: videoItem)
                     
                     // 创建VLC播放器容器
-                    let container = VLCPlayerContainer.forWebDAV(
-                        item: videoItem,
-                        streamingURL: streamingURL,
-                        subtitleFiles: subtitleFiles,
+                    let container = VLCPlayerContainer.create(
+                        videoURL: streamingURL,
+                        originalFileName: videoItem.name,
+                        subtitleURL: subtitleFiles.first,
                         onDismiss: {
                             dismiss()
                         }

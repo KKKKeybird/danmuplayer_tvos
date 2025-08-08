@@ -239,6 +239,29 @@ struct JellyfinUserData: Codable {
 /// Jellyfin剧集
 typealias JellyfinEpisode = JellyfinMediaItem
 
+/// Jellyfin字幕轨道信息
+struct JellyfinSubtitleTrack: Codable {
+    let index: Int
+    let language: String?
+    let displayTitle: String?
+    let codec: String?
+    let isDefault: Bool
+    let isForced: Bool
+    let isExternal: Bool
+    let deliveryUrl: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case index = "Index"
+        case language = "Language"
+        case displayTitle = "DisplayTitle"
+        case codec = "Codec"
+        case isDefault = "IsDefault"
+        case isForced = "IsForced"
+        case isExternal = "IsExternal"
+        case deliveryUrl = "DeliveryUrl"
+    }
+}
+
 /// Jellyfin响应包装器
 struct JellyfinItemsResponse<T: Codable>: Codable {
     let items: [T]

@@ -312,14 +312,45 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
         return client.getImageUrl(itemId: item.id, type: type, maxWidth: maxWidth)
     }
     
-    // MARK: - 创建统一的视频播放器容器
-    func createVideoPlayerContainer(for item: JellyfinMediaItem, onDismiss: @escaping () -> Void) -> VLCPlayerContainer? {
-        // 使用VLCPlayerContainer工厂方法创建Jellyfin播放器
-        return VLCPlayerContainer.forJellyfin(
-            item: item,
-            client: client,
-            onDismiss: onDismiss
-        )
+    // MARK: - 字幕处理（由ViewModel负责）
+    
+    /// 为播放准备媒体（包括获取并缓存所有可用字幕）
+    /// - Parameters:
+    ///   - item: 媒体项
+    ///   - completion: 完成回调，返回播放URL和所有字幕URL数组
+    func prepareMediaForPlayback(item: JellyfinMediaItem, completion: @escaping (URL, [URL]) -> Void) {
+        let playbackURL = client.getStreamingUrl(for: item.id)
+        // 获取所有字幕轨道
+        client.getSubtitleTracks(for: item.id) { [weak self] result in
+            guard let self = self else {
+                DispatchQueue.main.async { completion(playbackURL, []) }
+                return
+            }
+            switch result {
+            case .success(let tracks):
+                if tracks.isEmpty {
+                    DispatchQueue.main.async { completion(playbackURL, []) }
+                    return
+                }
+                // 下载所有字幕并缓存
+                let group = DispatchGroup()
+                var subtitleURLs: [URL] = []
+                for track in tracks {
+                    group.enter()
+                    self.client.downloadAndConvertSubtitle(itemId: item.id, track: track) { url in
+                        if let url = url {
+                            subtitleURLs.append(url)
+                        }
+                        group.leave()
+                    }
+                }
+                group.notify(queue: .main) {
+                    completion(playbackURL, subtitleURLs)
+                }
+            case .failure(_):
+                DispatchQueue.main.async { completion(playbackURL, []) }
+            }
+        }
     }
     
     // MARK: - 播放逻辑方法

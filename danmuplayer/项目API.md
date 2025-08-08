@@ -158,6 +158,11 @@ class JellyfinClient{
     func refreshEpisodes(seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) // 强制刷新剧集列表（跳过缓存）
     func getEpisodeDetails(episodeId: String, completion: @escaping (Result<JellyfinEpisode, Error>) -> Void) // 获取单个剧集的详细信息（优先使用缓存）
     func getCachedEpisodeMetadata(episodeId: String) -> JellyfinEpisode? // 从缓存中快速获取剧集元数据（同步方法）
+    // MARK: - 字幕相关API (https://api.jellyfin.org/#tag/Subtitle/operation/GetRemoteSubtitles)
+    func getSubtitleTracks(for itemId: String, completion: @escaping (Result<[JellyfinSubtitleTrack], Error>) -> Void) // 获取媒体项的可用字幕列表
+    func getSubtitleURL(for itemId: String, subtitleIndex: Int, format: String = "srt") -> URL? // 获取指定字幕轨道的字幕URL
+    func getRecommendedSubtitleURL(for itemId: String, completion: @escaping (URL?) -> Void) // 获取推荐的字幕轨道（优先中文字幕）
+    func getAndCacheASSSubtitle(for itemId: String, completion: @escaping (URL?) -> Void) // 获取并缓存ASS字幕文件（用于播放前预处理）
 }
 //// WebDAVClient
 class WebDAVClient{
@@ -550,6 +555,26 @@ struct JellyfinUserData: Codable {
     }
 }
 typealias JellyfinEpisode = JellyfinMediaItem
+struct JellyfinSubtitleTrack: Codable {
+    let index: Int
+    let language: String?
+    let displayTitle: String?
+    let codec: String?
+    let isDefault: Bool
+    let isForced: Bool
+    let isExternal: Bool
+    let deliveryUrl: String?
+    enum CodingKeys: String, CodingKey {
+        case index = "Index"
+        case language = "Language"
+        case displayTitle = "DisplayTitle"
+        case codec = "Codec"
+        case isDefault = "IsDefault"
+        case isForced = "IsForced"
+        case isExternal = "IsExternal"
+        case deliveryUrl = "DeliveryUrl"
+    }
+}
 struct JellyfinItemsResponse<T: Codable>: Codable {
     let items: [T]
     let totalRecordCount: Int
@@ -628,7 +653,7 @@ class FileBrowserViewModel: ObservableObject {
     func testWebDAVConnection() // 测试WebDAV连接
     func createChildViewModel(for item: WebDAVItem) -> FileBrowserViewModel // 创建子目录的ViewModel
     func playVideo(item: WebDAVItem) // 播放视频文件
-    func createVideoPlayerContainer(for item: WebDAVItem, completion: @escaping (VLCPlayerContainer?) -> Void) // 创建基于VLCUI的视频播放器容器
+    func createVideoPlayerContainer(for item: WebDAVItem, completion: @escaping (VLCPlayerContainer?) -> Void) // 创建基于VLCUI的视频播放器容器（WebDAV字幕管理）
     func getVideoStreamingURL(for item: WebDAVItem, completion: @escaping (Result<URL, Error>) -> Void) // 获取视频文件的流媒体URL
     func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem] // 查找同目录下的字幕文件
     func sortItems(by option: SortOption) // 支持文件排序（名称、日期、大小）
@@ -644,7 +669,8 @@ class JellyfinMediaLibraryViewModel: ObservableObject{
     func goBack() // MARK: - 返回上一级
     func refresh() // MARK: - 刷新当前媒体库
     func getImageUrl(for item: JellyfinMediaItem, type: String = "Primary", maxWidth: Int = 600) -> URL? // MARK: - 获取媒体项目的海报图片URL
-    func createVideoPlayerContainer(for item: JellyfinMediaItem, onDismiss: @escaping () -> Void) -> VLCPlayerContainer? // MARK: - 创建基于VLCUI的视频播放器容器
+    func createVideoPlayerContainer(for item: JellyfinMediaItem, onDismiss: @escaping () -> Void) -> VLCPlayerContainer? // MARK: - 创建基于VLCUI的视频播放器容器（已移除，使用统一创建方法）
+    func prepareMediaForPlayback(item: JellyfinMediaItem, completion: @escaping (URL, URL?) -> Void) // 为播放准备媒体（包括获取并缓存ASS字幕）
     @available(*, deprecated, message: "使用 createVideoPlayerContainer 替代")
     func createVideoPlayerViewModel(for item: JellyfinMediaItem) -> VideoPlayerViewModel // MARK: - 创建统一的视频播放器视图模型 (已弃用)
     func getEpisodes(for seriesId: String, completion: @escaping (Result<[JellyfinEpisode], Error>) -> Void) // MARK: - 获取剧集列表
@@ -707,9 +733,22 @@ class MediaLibraryViewModel: ObservableObject {
 #### Components.EpisodeCard: Jellyfin媒体集卡片组件
 ## PlayerViews (基于VLCUI构建)
 ### VLCPlayerContainer: 视频播放生成容器，负责创建和管理VLC播放器实例
-- 提供工厂方法为不同媒体源创建播放器
-- 集成错误处理和加载状态管理
-- 支持WebDAV、Jellyfin和本地文件播放
+
+**统一创建方法**：
+- `VLCPlayerContainer.create(videoURL, originalFileName, subtitleURL?, onDismiss)`: 统一的播放器创建方法
+  - videoURL: 视频播放URL
+  - originalFileName: 原始文件名
+  - subtitleURL: 字幕文件URL（可选）
+  - onDismiss: 关闭回调
+
+**字幕管理责任分离**：
+- **JellyfinMediaLibraryViewModel**: 负责Jellyfin字幕的获取、缓存和ASS转换
+- **FileBrowserViewModel**: 负责WebDAV字幕文件的查找和匹配
+- **VLCPlayerContainer**: 只负责播放器的创建和管理，不涉及具体的字幕逻辑
+- **统一接口**: 所有媒体源都使用相同的创建方法 `create(videoURL:originalFileName:subtitleURL:onDismiss:)`
+- **简化架构**: 移除不必要的媒体源区分，专注于核心播放功能
+- **便捷方法**: 提供向后兼容的便捷创建方法
+- **错误处理**: 集成加载状态管理和错误处理
 ### VLCPlayerView: 播放器界面，使用VLCUI库构建，接受视频原始文件名，视频Url和字幕Url，根据视频Url解析文件信息，进入后使用DanDanPlayAPI寻找字幕，加入到字幕轨中同时加载弹幕和字幕
 - 基于VLCUIVideoPlayerView构建现代化播放器界面
 - 集成弹幕系统和字幕管理
@@ -742,9 +781,7 @@ class MediaLibraryViewModel: ObservableObject {
 
 ## 播放器工厂模式
 项目使用工厂模式创建不同类型的播放器：
-- `VLCPlayerContainer.forWebDAV()`: WebDAV媒体播放
-- `VLCPlayerContainer.forJellyfin()`: Jellyfin媒体播放  
-- `VLCPlayerContainer.forLocalFile()`: 本地文件播放
+- `VLCPlayerContainer.create()`: 统一的播放器创建方法，适用于所有媒体源
 
 # 交互跳转逻辑:
 MediaLibraryViews->WebDAVLibraryViews->PlayerViews

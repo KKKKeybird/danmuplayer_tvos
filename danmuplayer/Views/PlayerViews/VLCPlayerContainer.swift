@@ -7,7 +7,7 @@ struct VLCPlayerContainer: View {
     // MARK: - 输入参数
     let videoURL: URL
     let originalFileName: String
-    let subtitleURL: URL?
+    let subtitleURLs: [URL]
     let onDismiss: () -> Void
     
     // MARK: - 状态管理
@@ -30,7 +30,7 @@ struct VLCPlayerContainer: View {
                 VLCPlayerView(
                     videoURL: videoURL,
                     originalFileName: originalFileName,
-                    subtitleURL: subtitleURL,
+                    subtitleURLs: subtitleURLs,
                     onDismiss: onDismiss
                 )
             }
@@ -38,9 +38,7 @@ struct VLCPlayerContainer: View {
         .onAppear {
             setupPlayer()
         }
-    }
-    
-    // MARK: - 私有方法
+    }    // MARK: - 私有方法
     
     private func setupPlayer() {
         isLoading = true
@@ -48,14 +46,14 @@ struct VLCPlayerContainer: View {
         
         // 验证视频URL
         DispatchQueue.global(qos: .userInitiated).async {
-            if canAccessURL(videoURL) {
+            if self.canAccessURL(self.videoURL) {
                 DispatchQueue.main.async {
-                    isLoading = false
+                    self.isLoading = false
                 }
             } else {
                 DispatchQueue.main.async {
-                    isLoading = false
-                    errorMessage = "无法访问视频文件，请检查网络连接或文件路径。"
+                    self.isLoading = false
+                    self.errorMessage = "无法访问视频文件，请检查网络连接或文件路径。"
                 }
             }
         }
@@ -89,93 +87,40 @@ struct VLCPlayerContainer: View {
     }
 }
 
-// MARK: - 工厂方法
+// MARK: - 简化的创建方法
 
 @available(tvOS 17.0, *)
 extension VLCPlayerContainer {
     
-    /// 为WebDAV创建播放器容器
-    static func forWebDAV(
-        item: WebDAVItem,
-        streamingURL: URL,
-        subtitleFiles: [WebDAVItem] = [],
+    /// 统一的播放器容器创建方法
+    static func create(
+        videoURL: URL,
+        originalFileName: String,
+        subtitleURLs: [URL] = [],
         onDismiss: @escaping () -> Void
     ) -> VLCPlayerContainer {
-        
-        // 寻找字幕文件
-        let subtitleURL = findBestSubtitleURL(for: item.name, in: subtitleFiles)
-        
         return VLCPlayerContainer(
-            videoURL: streamingURL,
-            originalFileName: item.name,
-            subtitleURL: subtitleURL,
+            videoURL: videoURL,
+            originalFileName: originalFileName,
+            subtitleURLs: subtitleURLs,
             onDismiss: onDismiss
         )
-    }
-    
-    /// 为Jellyfin创建播放器容器
-    static func forJellyfin(
-        item: JellyfinMediaItem,
-        client: JellyfinClient,
-        onDismiss: @escaping () -> Void
-    ) -> VLCPlayerContainer {
-        
-        guard let playbackURL = client.getPlaybackUrl(itemId: item.id) else {
-            // 如果无法获取播放URL，返回带错误的容器
-            return VLCPlayerContainer(
-                videoURL: URL(string: "about:blank")!,
-                originalFileName: item.name,
-                subtitleURL: nil,
-                onDismiss: onDismiss
-            )
-        }
-        
-        return VLCPlayerContainer(
-            videoURL: playbackURL,
-            originalFileName: item.name,
-            subtitleURL: nil, // Jellyfin的字幕通常是内嵌的
-            onDismiss: onDismiss
-        )
-    }
-    
-    /// 为本地文件创建播放器容器
-    static func forLocalFile(
-        url: URL,
-        subtitleURL: URL? = nil,
-        onDismiss: @escaping () -> Void
-    ) -> VLCPlayerContainer {
-        
-        return VLCPlayerContainer(
-            videoURL: url,
-            originalFileName: url.lastPathComponent,
-            subtitleURL: subtitleURL,
-            onDismiss: onDismiss
-        )
-    }
-    
-    // MARK: - 辅助方法
-    
-    private static func findBestSubtitleURL(for videoName: String, in subtitleFiles: [WebDAVItem]) -> URL? {
-        let videoBaseName = videoName.components(separatedBy: ".").first ?? videoName
-        
-        // 查找匹配的字幕文件
-        let matchingSubtitles = subtitleFiles.filter { subtitle in
-            let subtitleBaseName = subtitle.name.components(separatedBy: ".").first ?? subtitle.name
-            return subtitleBaseName.contains(videoBaseName) || videoBaseName.contains(subtitleBaseName)
-        }
-        
-        // 优先选择中文字幕
-        for subtitle in matchingSubtitles {
-            let fileName = subtitle.name.lowercased()
-            if fileName.contains("zh") || fileName.contains("chinese") || fileName.contains("中文") {
-                return URL(string: subtitle.path) // 这里需要根据实际的WebDAV路径构造方式调整
-            }
-        }
-        
-        // 如果没有中文字幕，返回第一个匹配的字幕
-        return matchingSubtitles.first.map { URL(string: $0.path) } ?? nil
     }
 }
+
+// MARK: - 使用示例
+
+/*
+ 统一的使用方式：
+
+ // 通用方式
+ let player = VLCPlayerContainer.create(
+     videoURL: videoURL,
+     originalFileName: "视频.mp4",
+     subtitleURL: subtitleURL,
+     onDismiss: { dismiss() }
+ )
+*/
 
 // MARK: - 辅助视图
 
