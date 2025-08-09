@@ -86,11 +86,6 @@ class VLCSubtitleTrackManager {
             print("无法获取字幕文件URL")
             return false
         }
-        // 3. 使用字幕文件添加到 VLC
-        guard let finalURL = subtitleURL else {
-            print("无法获取字幕文件URL")
-            return false
-        }
         
         // 添加为额外的字幕轨道（不替换现有字幕）
         let result = player.addPlaybackSlave(finalURL, type: .subtitle, enforce: false)

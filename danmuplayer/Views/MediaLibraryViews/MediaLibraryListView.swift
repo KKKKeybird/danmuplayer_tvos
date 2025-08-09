@@ -13,7 +13,9 @@ struct MediaLibraryListView: View {
         NavigationView {
             List {
                 ForEach(viewModel.mediaLibraries) { library in
-                    NavigationLink(destination: destinationView(for: library)) {
+                    NavigationLink(destination: destinationView(for: library)
+                        .id(library.id.uuidString + "|" + library.config.serverURL + "|" + (library.config.username ?? ""))
+                    ) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(library.name)
@@ -76,10 +78,16 @@ struct MediaLibraryListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingAddConfig) {
+            .sheet(isPresented: $showingAddConfig, onDismiss: {
+                viewModel.refreshLibraries()
+                viewModel.testAllConnections()
+            }) {
                 MediaLibraryConfigView(configManager: viewModel.configManager)
             }
-            .sheet(item: $editingConfig) { config in
+            .sheet(item: $editingConfig, onDismiss: {
+                viewModel.refreshLibraries()
+                viewModel.testAllConnections()
+            }) { config in
                 MediaLibraryConfigView(configManager: viewModel.configManager, editingConfig: config)
             }
             .onAppear {

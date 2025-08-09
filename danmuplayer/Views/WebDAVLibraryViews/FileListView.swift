@@ -9,6 +9,7 @@ struct FileListView: View {
     @State private var selectedVideoItem: WebDAVItem?
     @State private var showingVideoPlayer = false
     @State private var showingSortMenu = false
+    @State private var isPreparingPlayback = false
 
     var body: some View {
         ZStack {
@@ -48,10 +49,16 @@ struct FileListView: View {
                         } else {
                             Button(action: {
                                 if WebDAVVideoPlayerWrapper.isVideoFile(item.name) {
-                                    print("WebDAV: 点击播放视频文件: \(item.name)")
+                                    // 统一成 Jellyfin 详情页的播放流程：先准备媒体，再显示播放器容器
                                     selectedVideoItem = item
-                                    showingVideoPlayer = true
-                                    print("WebDAV: 设置播放状态 - selectedVideoItem: \(String(describing: selectedVideoItem?.name)), showingVideoPlayer: \(showingVideoPlayer)")
+                                    isPreparingPlayback = true
+                                    viewModel.prepareMediaForPlayback(item: item) { url, _ in
+                                        DispatchQueue.main.async {
+                                            isPreparingPlayback = false
+                                            if url.absoluteString.isEmpty { return }
+                                            showingVideoPlayer = true
+                                        }
+                                    }
                                 }
                             }) {
                                 HStack {
@@ -99,10 +106,8 @@ struct FileListView: View {
                     }
                 }
             }
-            
-            // 排序选择覆盖层
-            .smallMenuOverlay(isPresented: $showingSortMenu, title: "排序选择") {
-                WebDAVSortSelectionPopover(
+            .sheet(isPresented: $showingSortMenu) {
+                WebDAVSortView(
                     isPresented: $showingSortMenu,
                     selectedOption: $sortOption,
                     onSelectionChanged: { option in
@@ -127,6 +132,69 @@ struct FileListView: View {
                 .ignoresSafeArea()
             }
         }
+        // 播放准备中的全屏遮罩
+        .overlay {
+            if isPreparingPlayback {
+                ZStack {
+                    Color.black.opacity(0.6).ignoresSafeArea()
+                    VStack(spacing: 12) {
+                        ProgressView().scaleEffect(1.2)
+                        Text("准备播放...").foregroundStyle(.white)
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
         // 移除对viewModel.showingVideoPlayer和selectedVideoItem的依赖
+    }
+}
+
+@available(tvOS 17.0, *)
+private struct WebDAVPlaybackBridge: View {
+    let videoItem: WebDAVItem
+    let viewModel: FileBrowserViewModel
+    let onDismiss: () -> Void
+    
+    @State private var container: VLCPlayerContainer?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    
+    var body: some View {
+        ZStack {
+            if isLoading {
+                ProgressView().scaleEffect(1.5)
+            } else if let errorMessage = errorMessage {
+                VStack(spacing: 16) {
+                    Text(errorMessage).foregroundColor(.white)
+                    Button("返回") { onDismiss() }
+                }
+            } else if let container = container {
+                container
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black)
+        .onAppear { setup() }
+    }
+    
+    private func setup() {
+        isLoading = true
+        errorMessage = nil
+        viewModel.prepareMediaForPlayback(item: videoItem) { url, subtitles in
+            DispatchQueue.main.async {
+                if url.absoluteString.isEmpty {
+                    errorMessage = "无法获取视频流"
+                    isLoading = false
+                    return
+                }
+                container = VLCPlayerContainer.create(
+                    videoURL: url,
+                    originalFileName: videoItem.name,
+                    subtitleURLs: subtitles,
+                    onDismiss: onDismiss
+                )
+                isLoading = false
+            }
+        }
     }
 }

@@ -66,7 +66,10 @@ struct JellyfinMediaLibraryView: View {
         }
         .navigationTitle("媒体库")
         .onAppear {
-            viewModel.authenticate()
+            // 仅在首次或无数据时触发，避免重复认证导致长时间 isLoading
+            if !viewModel.isAuthenticated && !viewModel.isLoading && viewModel.libraries.isEmpty && viewModel.mediaItems.isEmpty {
+                viewModel.authenticate()
+            }
         }
         .refreshable {
             viewModel.refresh()
@@ -158,10 +161,8 @@ struct JellyfinMediaLibraryView: View {
                     }
                 }
             }
-            
-            // 排序选择覆盖层
-            .smallMenuOverlay(isPresented: $showingSortMenu, title: "排序选择") {
-                JellyfinSortSelectionPopoverTV(
+            .sheet(isPresented: $showingSortMenu) {
+                JellyfinSortView(
                     isPresented: $showingSortMenu,
                     selectedOption: $sortOption
                 )

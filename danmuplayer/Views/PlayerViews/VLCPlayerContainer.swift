@@ -168,19 +168,3 @@ private struct ErrorView: View {
         .background(Color.black)
     }
 }
-
-// MARK: - 预览
-
-#if DEBUG
-@available(tvOS 17.0, *)
-struct VLCPlayerContainer_Previews: PreviewProvider {
-    static var previews: some View {
-        VLCPlayerContainer(
-            videoURL: URL(string: "https://example.com/video.mp4")!,
-            originalFileName: "示例视频.mp4",
-            subtitleURLs: [],
-            onDismiss: {}
-        )
-    }
-}
-#endif

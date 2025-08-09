@@ -76,9 +76,9 @@ protocol VLCPlayerControlDelegate: AnyObject {
 // MARK: - VLC 集成的信息覆盖层
 
 @available(tvOS 17.0, *)
-struct VLCIntegratedOverlay: View {
+struct TopInformationOverlay: View {
     @ObservedObject private var playerState: VLCPlayerState
-    weak var controlDelegate: VLCPlayerControlDelegate?
+    let controlDelegate: VLCPlayerControlDelegate?
     
     @State private var isVisible: Bool = true
     @State private var hideTimer: Timer?
@@ -92,25 +92,12 @@ struct VLCIntegratedOverlay: View {
         VStack(spacing: 0) {
             // 顶部控制栏
             topControlBar
-            
             Spacer()
-            
-            // 底部控制栏
-            bottomControlBar
         }
-        .background(overlayGradient)
+        .background(overlayTopGradient)
         .opacity(isVisible ? 1 : 0)
-        .animation(.easeInOut(duration: 0.3), value: isVisible)
-        .onAppear {
-            startHideTimer()
-        }
-        .onReceive(playerState.$isPlaying) { isPlaying in
-            if isPlaying {
-                startHideTimer()
-            } else {
-                showOverlay()
-            }
-        }
+        .onAppear { startHideTimer() }
+        .onReceive(playerState.$isPlaying) { $0 ? startHideTimer() : showOverlay() }
     }
     
     // MARK: - 子视图
@@ -147,23 +134,20 @@ struct VLCIntegratedOverlay: View {
                     title: "设置",
                     action: { controlDelegate?.playerDidRequestDanmakuSettings() }
                 )
+                
+                // 调试
+                overlayButton(
+                    icon: "ladybug",
+                    title: "调试",
+                    action: { NotificationCenter.default.post(name: NSNotification.Name("DanmakuDebugToggle"), object: nil) }
+                )
             }
         }
         .padding(.horizontal, 50)
         .padding(.top, 50)
     }
     
-    private var bottomControlBar: some View {
-        VStack(spacing: 20) {
-            // 播放控制按钮
-            playbackControls
-            
-            // 进度条和时间
-            progressSection
-        }
-        .padding(.horizontal, 50)
-        .padding(.bottom, 50)
-    }
+    // 顶部无底部控制栏
     
     private var playbackControls: some View {
         HStack(spacing: 50) {
@@ -224,16 +208,8 @@ struct VLCIntegratedOverlay: View {
         }
     }
     
-    private var overlayGradient: some View {
-        LinearGradient(
-            gradient: Gradient(colors: [
-                Color.black.opacity(0.8),
-                Color.clear,
-                Color.black.opacity(0.8)
-            ]),
-            startPoint: .top,
-            endPoint: .bottom
-        )
+    private var overlayTopGradient: some View {
+        LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0.8), Color.clear]), startPoint: .top, endPoint: .center)
     }
     
     // MARK: - 辅助方法
@@ -265,70 +241,106 @@ struct VLCIntegratedOverlay: View {
     }
 }
 
-// MARK: - VLC 播放器状态管理
+// 底部 Overlay
+@available(tvOS 17.0, *)
+struct BottomInformationOverlay: View {
+    @ObservedObject private var playerState: VLCPlayerState
+    let controlDelegate: VLCPlayerControlDelegate?
+    @State private var isVisible: Bool = true
+    @State private var hideTimer: Timer?
 
+    init(player: VLCMediaPlayer, controlDelegate: VLCPlayerControlDelegate? = nil) {
+        self.playerState = VLCPlayerState(player: player)
+        self.controlDelegate = controlDelegate
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            bottomControlBar
+        }
+        .background(overlayBottomGradient)
+        .opacity(isVisible ? 1 : 0)
+        .onAppear { startHideTimer() }
+        .onReceive(playerState.$isPlaying) { $0 ? startHideTimer() : showOverlay() }
+    }
+
+    private var bottomControlBar: some View {
+        VStack(spacing: 20) {
+            playbackControls
+            progressSection
+        }
+        .padding(.horizontal, 50)
+        .padding(.bottom, 50)
+    }
+
+    private var playbackControls: some View {
+        HStack(spacing: 50) {
+            overlayButton(icon: "speaker.wave.2", title: "音轨") { controlDelegate?.playerDidRequestAudioTrackSelection() }
+            Button(action: { playerState.player.rewind(15) }) { Image(systemName: "gobackward.15").font(.title2).foregroundColor(.white) }
+            Button(action: { playerState.togglePlayback() }) { Image(systemName: playerState.isPlaying ? "pause.fill" : "play.fill").font(.largeTitle).foregroundColor(.white) }
+            Button(action: { playerState.player.fastForward(15) }) { Image(systemName: "goforward.15").font(.title2).foregroundColor(.white) }
+            overlayButton(icon: "captions.bubble", title: "字幕") { controlDelegate?.playerDidRequestSubtitleSelection() }
+        }
+    }
+
+    private var progressSection: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text(playerState.formattedCurrentTime).foregroundColor(.white).font(.caption)
+                Spacer()
+                Text(playerState.formattedDuration).foregroundColor(.white).font(.caption)
+            }
+            VLCProgressBar(playerState: playerState)
+        }
+    }
+
+    private var overlayBottomGradient: some View {
+        LinearGradient(gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.8)]), startPoint: .center, endPoint: .bottom)
+    }
+
+    private func overlayButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon).font(.title3)
+                Text(title).font(.caption2)
+            }
+            .foregroundColor(.white)
+        }
+    }
+
+    private func showOverlay() { hideTimer?.invalidate(); isVisible = true }
+    private func startHideTimer() {
+        hideTimer?.invalidate()
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) { isVisible = false }
+        }
+    }
+}
+
+// 播放器状态共享
 @available(tvOS 17.0, *)
 class VLCPlayerState: ObservableObject {
     let player: VLCMediaPlayer
     private var timeObserver: Timer?
-    
     @Published var isPlaying: Bool = false
     @Published var currentTime: String = "0:00"
     @Published var duration: String = "0:00"
     @Published var progress: Float = 0.0
-    
-    var formattedCurrentTime: String {
-        return player.formattedCurrentTime
-    }
-    
-    var formattedDuration: String {
-        return player.formattedDuration
-    }
-    
-    init(player: VLCMediaPlayer) {
-        self.player = player
-        setupObservers()
-        startTimeObserver()
-    }
-    
-    deinit {
-        timeObserver?.invalidate()
-    }
-    
-    private func setupObservers() {
-        // 监听播放状态变化 - 使用字符串创建通知名称
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("VLCMediaPlayerStateChanged"),
-            object: player,
-            queue: .main
-        ) { [weak self] _ in
-            self?.updatePlaybackState()
-        }
-    }
-    
+    var formattedCurrentTime: String { player.formattedCurrentTime }
+    var formattedDuration: String { player.formattedDuration }
+    init(player: VLCMediaPlayer) { self.player = player; startTimeObserver() }
+    deinit { timeObserver?.invalidate() }
     private func startTimeObserver() {
-        timeObserver = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            self?.updateTimeInfo()
-        }
+        timeObserver = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.update() }
     }
-    
-    private func updatePlaybackState() {
+    private func update() {
         isPlaying = player.isPlaying
-    }
-    
-    private func updateTimeInfo() {
         currentTime = player.formattedCurrentTime
         duration = player.formattedDuration
         progress = player.playbackProgress
     }
-    
-    func togglePlayback() {
-        if player.isPlaying {
-            player.pause()
-        } else {
-            player.play()
-        }
-    }
+    func togglePlayback() { player.isPlaying ? player.pause() : player.play() }
 }
 
 // MARK: - VLC 进度条组件
@@ -377,10 +389,10 @@ struct VLCProgressBar: View {
 
 /// 原有的 InformationOverlay 结构体的类型别名，用于保持向后兼容性
 @available(tvOS 17.0, *)
-typealias InformationOverlay = VLCIntegratedOverlay
+typealias InformationOverlay = TopInformationOverlay
 
 /// 原有的 OverlayType 枚举，用于保持向后兼容性
-extension VLCIntegratedOverlay {
+extension TopInformationOverlay {
     enum OverlayType {
         case main
         case audioTrack

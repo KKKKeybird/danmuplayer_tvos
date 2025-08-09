@@ -44,16 +44,30 @@ class DanmakuToSubtitleConverter {
             let startTime = formatASSTime(comment.time)
             let endTime = formatASSTime(comment.time + (comment.isScrolling ? 8.0 : 3.0))
             let style = getASSStyle(for: comment)
-            let effect = getASSEffect(for: comment, videoWidth: videoWidth)
             let colorCode = String(format: "&H00%06X", comment.colorValue & 0xFFFFFF)
-            
-            // 为文本添加颜色标签
-            let coloredText = "{\\\\c\(colorCode)}\(comment.content)"
-            
-            assContent += "Dialogue: 0,\(startTime),\(endTime),\(style),,0,0,0,\(effect),\(coloredText)\n"
+
+            // 将滚动与颜色写入文本字段，Effect 字段留空，提升兼容性
+            let moveTag = comment.isScrolling ? "{\\move(\(videoWidth + 100),0,-100,0)}" : ""
+            let colorTag = "{\\c\(colorCode)}"
+            let safeText = escapeASSText(comment.content)
+            let textField = "\(colorTag)\(moveTag)\(safeText)"
+
+            assContent += "Dialogue: 0,\(startTime),\(endTime),\(style),,0,0,0,,\(textField)\n"
         }
         
         return assContent
+    }
+    
+    /// 对ASS文本做必要转义，避免分隔符/控制符破坏行格式
+    private static func escapeASSText(_ text: String) -> String {
+        var s = text
+        s = s.replacingOccurrences(of: "\\", with: "\\\\")
+        s = s.replacingOccurrences(of: "\n", with: "\\N")
+        s = s.replacingOccurrences(of: "\r", with: "")
+        s = s.replacingOccurrences(of: ",", with: "，")
+        s = s.replacingOccurrences(of: "{", with: "(")
+        s = s.replacingOccurrences(of: "}", with: ")")
+        return s
     }
     // MARK: - 将弹幕缓存为本地字幕文件
     static func cacheDanmakuAsSubtitle(_ comments: [DanmakuComment], 

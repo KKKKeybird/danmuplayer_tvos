@@ -328,11 +328,7 @@ class JellyfinClient {
         
         print("Jellyfin: Getting library items for user ID: \(currentUserId), library: \(libraryId)")
         
-        // 先检查缓存
-        if let cachedItems = JellyfinCache.shared.getCachedLibraryItems(for: libraryId) {
-            completion(.success(cachedItems))
-            return
-        }
+        // 不缓存媒体库的项目列表，始终请求服务器以反映最新选择
         
         var components = URLComponents(url: serverURL.appendingPathComponent("Users/\(currentUserId)/Items"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
@@ -401,9 +397,6 @@ class JellyfinClient {
                     for (index, item) in response.items.enumerated() {
                         print("Jellyfin: Item \(index + 1): \(item.name) (ID: \(item.id), Type: \(item.type))")
                     }
-                    
-                    // 缓存媒体库项目
-                    JellyfinCache.shared.cacheLibraryItems(response.items, for: libraryId)
                     
                     completion(.success(response.items))
                 } catch {
@@ -617,6 +610,21 @@ class JellyfinClient {
         
         return components?.url
     }
+
+    // MARK: - 获取原始文件直链（支持 Range）
+    /// 优先尝试返回原始文件下载直链，VLC 将自行使用 HTTP Range 播放。
+    /// 若不可用，使用 getPlaybackUrl 作为回退。
+    func getDirectFileUrl(itemId: String) -> URL? {
+        // 直链路径：Items/{itemId}/File
+        var components = URLComponents(url: serverURL.appendingPathComponent("Items/\(itemId)/File"), resolvingAgainstBaseURL: false)
+        // 通过查询参数附带 token，避免自定义 Header（VLC 无法自定义）
+        if let apiKey = apiKey {
+            components?.queryItems = [URLQueryItem(name: "api_key", value: apiKey)]
+        } else if let accessToken = accessToken {
+            components?.queryItems = [URLQueryItem(name: "api_key", value: accessToken)]
+        }
+        return components?.url
+    }
     
     // MARK: - 获取图片URL
     func getImageUrl(itemId: String, type: String = "Primary", maxWidth: Int = 600) -> URL? {
@@ -666,7 +674,7 @@ class JellyfinClient {
     
     /// 发送心跳请求
     private func sendKeepAlive() {
-        guard let accessToken = accessToken else { return }
+        guard accessToken != nil else { return }
         
         let url = serverURL.appendingPathComponent("Sessions/Playing/Ping")
         var request = URLRequest(url: url)

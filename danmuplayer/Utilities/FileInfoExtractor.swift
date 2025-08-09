@@ -4,6 +4,18 @@ import AVFoundation
 
 /// 文件信息提取工具，用于DanDanPlay API的文件识别
 struct FileInfoExtractor {
+    /// 生成32位占位hash（十六进制字符）
+    private static func generatePlaceholderHash() -> String {
+        let hexChars = Array("0123456789abcdef")
+        var result = String()
+        result.reserveCapacity(32)
+        for _ in 0..<32 {
+            if let random = hexChars.randomElement() {
+                result.append(random)
+            }
+        }
+        return result
+    }
     
     /// 文件匹配信息
     struct FileMatchInfo {
@@ -16,70 +28,197 @@ struct FileInfoExtractor {
     /// 计算文件的MD5哈希值
     /// DanDanPlay API要求使用文件前16MB的MD5哈希
     static func calculateFileHash(for url: URL) -> String? {
-        guard let fileHandle = try? FileHandle(forReadingFrom: url) else {
-            return nil
+        // 本地文件：直接读取前16MB计算MD5
+        if url.isFileURL {
+            guard let fileHandle = try? FileHandle(forReadingFrom: url) else {
+                return generatePlaceholderHash()
+            }
+            defer { fileHandle.closeFile() }
+            let chunkSize = 16 * 1024 * 1024 // 16MB
+            let data = fileHandle.readData(ofLength: chunkSize)
+            guard !data.isEmpty else { return generatePlaceholderHash() }
+            let hash = Insecure.MD5.hash(data: data)
+            return hash.map { String(format: "%02x", $0) }.joined()
         }
-        defer { fileHandle.closeFile() }
-        
-        // 读取前16MB的数据
-        let chunkSize = 16 * 1024 * 1024 // 16MB
-        let data = fileHandle.readData(ofLength: chunkSize)
-        
-        guard !data.isEmpty else {
-            return nil
+
+        // 远程直链：避免主线程网络阻塞，主线程返回占位值；后台线程尝试Range获取前16MB计算MD5
+        guard url.scheme?.lowercased() == "http" || url.scheme?.lowercased() == "https" else {
+            return generatePlaceholderHash()
         }
-        
-        // 计算MD5哈希
-        let hash = Insecure.MD5.hash(data: data)
-        return hash.map { String(format: "%02x", $0) }.joined()
+        if Thread.isMainThread {
+            return generatePlaceholderHash()
+        }
+        if let data = fetchRemoteHeadChunk(url: url, maxBytes: 16 * 1024 * 1024, timeout: 5) {
+            let hash = Insecure.MD5.hash(data: data)
+            return hash.map { String(format: "%02x", $0) }.joined()
+        }
+        return generatePlaceholderHash()
     }
     
     /// 获取文件大小
     static func getFileSize(for url: URL) -> Int64? {
+        // 仅对本地文件读取大小
+        guard url.isFileURL else { return 0 }
         do {
             let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
             return Int64(resourceValues.fileSize ?? 0)
         } catch {
-            return nil
+            return 0
         }
     }
     
     /// 获取视频时长
     static func getVideoDuration(for url: URL) -> Double? {
-        let asset = AVAsset(url: url)
-        let duration = asset.duration
-        
-        guard duration.isValid && !duration.isIndefinite else {
+        // 优先尝试精确加载，适配远程直链
+        let asset: AVURLAsset
+        if url.isFileURL {
+            asset = AVURLAsset(url: url)
+        } else {
+            asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+        }
+
+        // 先同步获取一次（本地文件通常可用）
+        let initial = asset.duration
+        if initial.isValid && !initial.isIndefinite {
+            return CMTimeGetSeconds(initial)
+        }
+
+        // 避免在主线程对远程资源进行同步等待，直接返回nil，防止UI卡顿
+        if Thread.isMainThread && !url.isFileURL {
             return nil
         }
-        
-        return CMTimeGetSeconds(duration)
+
+        // 对远程资源尝试异步加载后同步等待，设置较短超时避免阻塞（使用旧API以保持同步调用）
+        let semaphore = DispatchSemaphore(value: 0)
+        var seconds: Double?
+        asset.loadValuesAsynchronously(forKeys: ["duration"]) {
+            var err: NSError?
+            let status = asset.statusOfValue(forKey: "duration", error: &err)
+            if status == .loaded {
+                let d = asset.duration
+                if d.isValid && !d.isIndefinite {
+                    seconds = CMTimeGetSeconds(d)
+                }
+            }
+            semaphore.signal()
+        }
+
+        _ = semaphore.wait(timeout: .now() + 5)
+        if let seconds { return seconds }
+
+        // 最后再检查一次
+        let final = asset.duration
+        return (final.isValid && !final.isIndefinite) ? CMTimeGetSeconds(final) : nil
     }
     
     /// 提取文件的完整匹配信息
     static func extractFileInfo(from url: URL) -> FileMatchInfo? {
-        let fileName = url.lastPathComponent
-        
-        guard let fileHash = calculateFileHash(for: url),
-              let fileSize = getFileSize(for: url) else {
-            // 如果无法计算hash或大小，至少返回文件名和视频时长信息
+        let fileName = extractFileName(from: url)
+
+        if url.isFileURL {
+            // 本地文件：计算前16MB MD5以及真实文件大小
+            guard let fileHash = calculateFileHash(for: url),
+                  let fileSize = getFileSize(for: url) else {
+                let videoDuration = getVideoDuration(for: url) ?? 0
+                return FileMatchInfo(
+                    fileName: fileName,
+                    fileHash: generatePlaceholderHash(),
+                    fileSize: 0,
+                    videoDuration: videoDuration
+                )
+            }
             let videoDuration = getVideoDuration(for: url) ?? 0
             return FileMatchInfo(
                 fileName: fileName,
-                fileHash: "",
-                fileSize: 0,
+                fileHash: fileHash,
+                fileSize: fileSize,
+                videoDuration: videoDuration
+            )
+        } else {
+            // 远程直链：使用占位hash；尝试通过HEAD获取Content-Length；尽力获取视频时长
+            let placeholderHash = generatePlaceholderHash()
+            let remoteSize = getRemoteFileSize(for: url) ?? 0
+            let videoDuration = getVideoDuration(for: url) ?? 0
+            return FileMatchInfo(
+                fileName: fileName,
+                fileHash: placeholderHash,
+                fileSize: remoteSize,
                 videoDuration: videoDuration
             )
         }
-        
-        // 获取视频时长
-        let videoDuration = getVideoDuration(for: url) ?? 0
-        
-        return FileMatchInfo(
-            fileName: fileName,
-            fileHash: fileHash,
-            fileSize: fileSize,
-            videoDuration: videoDuration
-        )
+    }
+
+    /// 远程直链尝试通过HEAD获取文件大小
+    private static func getRemoteFileSize(for url: URL) -> Int64? {
+        guard url.scheme?.lowercased() == "http" || url.scheme?.lowercased() == "https" else {
+            return nil
+        }
+        // 避免在主线程进行同步等待，防止UI卡顿
+        if Thread.isMainThread { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = 5
+
+        let semaphore = DispatchSemaphore(value: 0)
+        var contentLength: Int64?
+
+        URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let http = response as? HTTPURLResponse {
+                if let lengthString = http.allHeaderFields["Content-Length"] as? String,
+                   let length = Int64(lengthString) {
+                    contentLength = length
+                }
+            }
+            semaphore.signal()
+        }.resume()
+
+        _ = semaphore.wait(timeout: .now() + 5)
+        return contentLength
+    }
+
+    /// 远程直链抓取前 maxBytes 字节数据（Range 请求），仅在非主线程调用
+    private static func fetchRemoteHeadChunk(url: URL, maxBytes: Int, timeout: TimeInterval) -> Data? {
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("bytes=0-\(maxBytes - 1)", forHTTPHeaderField: "Range")
+        request.timeoutInterval = timeout
+
+        let semaphore = DispatchSemaphore(value: 0)
+        var resultData: Data?
+
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            if let http = response as? HTTPURLResponse, (http.statusCode == 206 || http.statusCode == 200), let data = data {
+                resultData = data.prefix(maxBytes)
+            }
+            semaphore.signal()
+        }.resume()
+
+        _ = semaphore.wait(timeout: .now() + timeout)
+        return resultData
+    }
+
+    /// 更鲁棒的文件名提取（适配远程直链与带查询参数的URL）
+    private static func extractFileName(from url: URL) -> String {
+        // 优先使用路径最后一段
+        var name = url.lastPathComponent
+        if let decoded = name.removingPercentEncoding { name = decoded }
+
+        // 移除常见的查询参数干扰
+        if name.isEmpty || !name.contains(".") {
+            if let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems {
+                let candidates = ["filename", "file", "name", "title"]
+                for key in candidates {
+                    if let value = queryItems.first(where: { $0.name.lowercased() == key })?.value,
+                       !value.isEmpty {
+                        name = value.removingPercentEncoding ?? value
+                        break
+                    }
+                }
+            }
+        }
+
+        // 兜底：使用host
+        if name.isEmpty { name = url.lastPathComponent.isEmpty ? (url.host ?? "video") : url.lastPathComponent }
+        return name
     }
 }

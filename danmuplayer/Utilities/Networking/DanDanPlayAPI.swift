@@ -47,16 +47,10 @@ class DanDanPlayAPI {
     
     // MARK: - 剧集匹配
     /// 自动识别剧集（返回最佳匹配结果）
-    func identifyEpisode(for videoURL: URL, completion: @escaping (Result<DanDanPlayEpisode, Error>) -> Void) {
-        // 提取文件信息
-        guard let fileInfo = FileInfoExtractor.extractFileInfo(from: videoURL) else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        let fileName = fileInfo.fileName
-        let fileNameWithoutExtension = (fileName as NSString).deletingPathExtension
-        
+    /// - Parameters:
+    ///   - videoURL: 视频源URL（本地或远程）
+    ///   - overrideFileName: 当URL无法提供有效文件名（如流媒体）时，使用此原始文件名参与匹配
+    func identifyEpisode(for videoURL: URL, overrideFileName: String? = nil, completion: @escaping (Result<DanDanPlayEpisode, Error>) -> Void) {
         // 先检查缓存（如果用户之前手动选择过，缓存中就是用户选择的结果）
         let cacheKey = videoURL
         if let cachedResult = DanDanPlayCache.shared.getCachedEpisodeInfo(for: cacheKey) {
@@ -64,43 +58,63 @@ class DanDanPlayAPI {
             completion(.success(cachedResult))
             return
         }
-        
-        // 构建匹配请求
-        guard let url = URL(string: "\(baseURL)/api/v2/match") else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
-        // 添加身份验证头
-        let path = "/api/v2/match"
-        guard addAuthenticationHeaders(to: &request, path: path) else {
-            completion(.failure(NetworkError.authenticationFailed))
-            return
-        }
-        
-        // 构建请求体
-        let requestBody: [String: Any] = [
-            "fileName": fileName,
-            "fileHash": fileInfo.fileHash,
-            "fileSize": fileInfo.fileSize,
-            "videoDuration": fileInfo.videoDuration, // 使用实际的视频时长
-            "matchMode": "hashAndFileName" // 使用hash和文件名匹配模式
-        ]
-        
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        } catch {
-            completion(.failure(NetworkError.parseError))
-            return
-        }
 
-        session.dataTask(with: request) { data, response, error in
-            if let error = error {
+        // 在后台线程提取文件信息（远程直链可计算真实hash）
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let fileInfo = FileInfoExtractor.extractFileInfo(from: videoURL) else {
+                completion(.failure(NetworkError.invalidURL))
+                return
+            }
+
+            let rawName = overrideFileName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let fallbackName = (rawName?.isEmpty == false ? rawName! : fileInfo.fileName)
+            let fileName = self.sanitizeFileName(fallbackName)
+
+            // 构建匹配请求
+            guard let url = URL(string: "\(self.baseURL)/api/v2/match") else {
+                completion(.failure(NetworkError.invalidURL))
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+            // 添加身份验证头
+            let path = "/api/v2/match"
+            guard self.addAuthenticationHeaders(to: &request, path: path) else {
+                completion(.failure(NetworkError.authenticationFailed))
+                return
+            }
+
+            // 构建请求体（根据可用信息自适应）
+            var requestBody: [String: Any] = [
+                "fileName": fileName,
+                "videoDuration": max(0, Int(fileInfo.videoDuration.rounded()))
+            ]
+            let hasHash = !fileInfo.fileHash.isEmpty && fileInfo.fileHash.count == 32
+            let hasSize = fileInfo.fileSize > 0
+            if hasHash { requestBody["fileHash"] = fileInfo.fileHash }
+            if hasSize { requestBody["fileSize"] = fileInfo.fileSize }
+            requestBody["matchMode"] = (hasHash && hasSize) ? "hashAndFileName" : "fileNameOnly"
+            print(requestBody)
+
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            } catch {
+                completion(.failure(NetworkError.parseError))
+                return
+            }
+            if let body = try? JSONSerialization.data(withJSONObject: requestBody),
+               let bodyString = String(data: body, encoding: .utf8) {
+                DispatchQueue.main.async {
+                    DanmakuDebugLogger.shared.add("Match 请求体: \(bodyString)")
+                }
+            }
+
+            self.session.dataTask(with: request) { data, response, error in
+            if error != nil {
                 completion(.failure(NetworkError.connectionFailed))
                 return
             }
@@ -154,57 +168,66 @@ class DanDanPlayAPI {
                 return
             }
         }.resume()
+        }
     }
 
 
     // MARK: - 剧集候选列表搜索
     /// 获取候选剧集列表供用户手动选择
     func fetchCandidateEpisodeList(for videoURL: URL, completion: @escaping (Result<[DanDanPlayEpisode], Error>) -> Void) {
-        // 提取文件信息
-        guard let fileInfo = FileInfoExtractor.extractFileInfo(from: videoURL) else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        let fileName = fileInfo.fileName
-        let fileNameWithoutExtension = (fileName as NSString).deletingPathExtension
-        
-        // 先尝试文件匹配
-        guard let url = URL(string: "\(baseURL)/api/v2/match") else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
-        // 添加身份验证头
-        let path = "/api/v2/match"
-        guard addAuthenticationHeaders(to: &request, path: path) else {
-            completion(.failure(NetworkError.authenticationFailed))
-            return
-        }
-        
-        // 构建请求体
-        let requestBody: [String: Any] = [
-            "fileName": fileName,
-            "fileHash": fileInfo.fileHash,
-            "fileSize": fileInfo.fileSize,
-            "videoDuration": fileInfo.videoDuration, // 使用实际的视频时长
-            "matchMode": "hashAndFileName"
-        ]
-        
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        } catch {
-            completion(.failure(NetworkError.parseError))
-            return
-        }
+        // 在后台线程提取文件信息（远程直链可计算真实hash）
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let fileInfo = FileInfoExtractor.extractFileInfo(from: videoURL) else {
+                completion(.failure(NetworkError.invalidURL))
+                return
+            }
 
-        session.dataTask(with: request) { data, response, error in
-            if let error = error {
+            let fileName = self.sanitizeFileName(fileInfo.fileName)
+
+            // 先尝试文件匹配
+            guard let url = URL(string: "\(self.baseURL)/api/v2/match") else {
+                completion(.failure(NetworkError.invalidURL))
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+            // 添加身份验证头
+            let path = "/api/v2/match"
+            guard self.addAuthenticationHeaders(to: &request, path: path) else {
+                completion(.failure(NetworkError.authenticationFailed))
+                return
+            }
+
+            // 构建请求体（自适应：远程直链可能没有文件大小）
+            var requestBody: [String: Any] = [
+                "fileName": fileName,
+                "videoDuration": max(0, Int(fileInfo.videoDuration.rounded()))
+            ]
+            let hasHash = !fileInfo.fileHash.isEmpty && fileInfo.fileHash.count == 32
+            let hasSize = fileInfo.fileSize > 0
+            if hasHash { requestBody["fileHash"] = fileInfo.fileHash }
+            if hasSize { requestBody["fileSize"] = fileInfo.fileSize }
+            requestBody["matchMode"] = (hasHash && hasSize) ? "hashAndFileName" : "fileNameOnly"
+
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            } catch {
+                completion(.failure(NetworkError.parseError))
+                return
+            }
+            if let body = try? JSONSerialization.data(withJSONObject: requestBody),
+               let bodyString = String(data: body, encoding: .utf8) {
+                DispatchQueue.main.async {
+                    DanmakuDebugLogger.shared.add("候选列表 请求体: \(bodyString)")
+                }
+            }
+
+            self.session.dataTask(with: request) { data, response, error in
+            if error != nil {
                 completion(.failure(NetworkError.connectionFailed))
                 return
             }
@@ -256,6 +279,7 @@ class DanDanPlayAPI {
                 return
             }
         }.resume()
+        }
     }
 
 
@@ -393,6 +417,37 @@ class DanDanPlayAPI {
                 completion(.failure(NetworkError.parseError))
             }
         }.resume()
+    }
+}
+
+// MARK: - 文件名清洗
+extension DanDanPlayAPI {
+    /// 去除无关标签，保留番名+集数等关键信息，提升匹配成功率
+    fileprivate func sanitizeFileName(_ name: String) -> String {
+        var s = name
+        // 去除路径
+        if let last = s.components(separatedBy: "/").last { s = last }
+        // 去除扩展名
+        if let dot = s.lastIndex(of: ".") { s = String(s[..<dot]) }
+        // 去除中括号/小括号/大括号内的内容（字幕组、语言、分辨率等）
+        let patterns = ["\\[.*?\\]", "\\(.*?\\)", "\\{.*?\\}"]
+        for p in patterns {
+            s = s.replacingOccurrences(of: p, with: " ", options: .regularExpression)
+        }
+        // 去除常见画质/编码标签
+        let tokens = ["1080p","720p","2160p","4k","x264","x265","hevc","avc","hdr","webrip","web-dl","bluray","dvdrip","aac","ac3","flac","chs","cht","big5","gb","eng","chinese","multi"]
+        for t in tokens { s = s.replacingOccurrences(of: t, with: " ", options: .caseInsensitive) }
+        // 将分隔符替换为空格
+        s = s.replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: ".", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+        // 合并多余空白
+        s = s.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        DispatchQueue.main.async {
+            DanmakuDebugLogger.shared.add("清洗文件名: \(name) -> \(s)")
+        }
+        return s.isEmpty ? name : s
     }
 }
 

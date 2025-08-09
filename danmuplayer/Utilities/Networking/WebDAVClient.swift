@@ -225,21 +225,18 @@ class WebDAVClient {
                         return
                     }
                     
-                    // 构建包含认证信息的URL
-                    var urlComponents = URLComponents(url: fileURL, resolvingAgainstBaseURL: false)
-                    print("WebDAV: Original URL components: \(urlComponents?.debugDescription ?? "nil")")
-                    urlComponents?.user = credentials.username
-                    urlComponents?.password = credentials.password
-                    print("WebDAV: URL components after adding credentials: \(urlComponents?.debugDescription ?? "nil")")
-                    
-                    if let authenticatedURL = urlComponents?.url {
-                        print("WebDAV: Created authenticated URL: \(authenticatedURL)")
-                        print("WebDAV: Authenticated URL components - scheme: \(authenticatedURL.scheme ?? "nil"), host: \(authenticatedURL.host ?? "nil"), path: \(authenticatedURL.path)")
-                        completion(.success(authenticatedURL))
-                    } else {
-                        print("WebDAV: Failed to create authenticated URL, using original")
-                        completion(.success(fileURL))
+                    // 为了让 VLC 使用 Range 而无需自定义 Header，这里在 URL 中内嵌 Basic 认证信息
+                    if var components = URLComponents(url: fileURL, resolvingAgainstBaseURL: false) {
+                        components.user = credentials.username
+                        components.password = credentials.password
+                        if let authenticatedURL = components.url {
+                            print("WebDAV: Using URL with embedded credentials for Range: \(authenticatedURL)")
+                            completion(.success(authenticatedURL))
+                            return
+                        }
                     }
+                    print("WebDAV: Fallback to original URL (server may allow anonymous GET)")
+                    completion(.success(fileURL))
                 }
             }.resume()
         } else {

@@ -7,12 +7,12 @@ import Combine
 @available(tvOS 17.0, *)
 class FileBrowserViewModel: ObservableObject {
     /// 统一获取视频播放URL和字幕URL数组
-    func prepareMediaForPlayback(item: WebDAVItem, completion: @escaping (URL, [URL?]) -> Void) {
+    func prepareMediaForPlayback(item: WebDAVItem, completion: @escaping (URL, [URL]) -> Void) {
         getVideoStreamingURL(for: item) { result in
             switch result {
             case .success(let videoURL):
                 let subtitleItems = self.findSubtitleFiles(for: item)
-                let subtitleURLs = subtitleItems.compactMap { self.constructWebDAVURL(for: $0) }
+                let subtitleURLs: [URL] = subtitleItems.compactMap { self.constructWebDAVURL(for: $0) }
                 completion(videoURL, subtitleURLs)
             case .failure:
                 // 失败时只返回空数组
