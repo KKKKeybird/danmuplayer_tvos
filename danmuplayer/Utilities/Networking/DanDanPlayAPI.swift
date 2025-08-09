@@ -283,42 +283,32 @@ class DanDanPlayAPI {
     }
 
 
-    // MARK: - 加载ASS弹幕
-    /// 加载弹幕并转换为ASS格式（新版简化API）
-    func loadDanmakuAsASS(for episode: DanDanPlayEpisode, completion: @escaping (Result<String, Error>) -> Void) {
-        // 先检查ASS缓存
-        if let cachedASS = DanDanPlayCache.shared.getCachedASSSubtitle(for: episode.episodeId) {
-            completion(.success(cachedASS))
+    /// 加载弹幕并解析为通用 DanmakuComment 列表（用于自绘叠加）
+    func loadDanmakuComments(for episode: DanDanPlayEpisode, completion: @escaping (Result<[DanmakuComment], Error>) -> Void) {
+        // 先查结构化弹幕缓存
+        if let cached = DanDanPlayCache.shared.getCachedDanmakuComments(for: episode.episodeId) {
+            completion(.success(cached))
             return
         }
-        
-        // 加载原始弹幕数据
         loadDanmaku(for: episode) { result in
             switch result {
             case .success(let data):
                 do {
-                    // 解析弹幕数据
                     let commentResult = try JSONDecoder().decode(DanDanPlayCommentResult.self, from: data)
-                    let comments = commentResult.comments ?? []
-                    let danmakuParams = comments.compactMap { $0.parsedParams }
-                    let danmakuComments = danmakuParams.map { params in
+                    let commentsRaw = commentResult.comments ?? []
+                    let params = commentsRaw.compactMap { $0.parsedParams }
+                    let comments = params.map { p in
                         DanmakuComment(
-                            time: params.time,
-                            mode: params.mode,
-                            fontSize: 25, // 默认字体大小
-                            colorValue: Int(params.color),
-                            timestamp: params.time,
-                            content: params.content
+                            time: p.time,
+                            mode: p.mode,
+                            fontSize: 25,
+                            colorValue: Int(p.color),
+                            timestamp: p.time,
+                            content: p.content
                         )
                     }
-                    // 转换为ASS格式
-                    let assContent = DanmakuToSubtitleConverter.convertToASS(danmakuComments, videoWidth: 1920, videoHeight: 1080)
-                    
-                    // 缓存ASS内容
-                    DanDanPlayCache.shared.cacheASSSubtitle(assContent, for: episode.episodeId)
-                    
-                    completion(.success(assContent))
-                    
+                    DanDanPlayCache.shared.cacheDanmakuComments(comments, for: episode.episodeId)
+                    completion(.success(comments))
                 } catch {
                     completion(.failure(NetworkError.parseError))
                 }

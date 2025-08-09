@@ -41,6 +41,12 @@ struct VLCPlayerView: View {
     @State private var showDanmakuDebug = false
     @State private var didLoadExternalSubtitles = false
     @State private var hasStartedPlayback = false
+    @FocusState private var isMainFocused: Bool
+    // 自绘弹幕
+    @State private var overlayDanmaku: [DanmakuComment] = []
+    // 信息层焦点目标
+    private enum OverlayFocusTarget { case top, bottom }
+    @State private var overlayFocusTarget: OverlayFocusTarget = .bottom
     
     // MARK: - 初始化
     
@@ -62,11 +68,20 @@ struct VLCPlayerView: View {
         ZStack {
             // 播放器图层
             playerSurface
+
+            // 自绘弹幕层（独立于 VLC 字幕轨）
+            DanmakuCanvas(
+                comments: overlayDanmaku,
+                currentTime: $currentTime,
+                isPlaying: $isPlaying,
+                settings: $danmakuSettings
+            )
+            .allowsHitTesting(false)
             
             // 信息覆盖层，默认隐藏，用户操作时滑入，超时或恢复播放后滑出
             if isOverlayVisible, let player = vlcPlayer {
-                topOverlayView(for: player)
-                bottomOverlayView(for: player)
+                topOverlayView(for: player, shouldRequestFocus: overlayFocusTarget == .top)
+                bottomOverlayView(for: player, shouldRequestFocus: overlayFocusTarget == .bottom)
             }
             
             // 加载状态
@@ -79,19 +94,32 @@ struct VLCPlayerView: View {
         .background(Color.black)
         .ignoresSafeArea()
         .contentShape(Rectangle())
-        .onTapGesture { showOverlayForInteraction() }
+        .focusable(true)
+        .focused($isMainFocused)
+        .onTapGesture {
+            if isOverlayVisible {
+                withAnimation(.easeInOut(duration: 0.25)) { isOverlayVisible = false }
+            } else {
+                overlayFocusTarget = .bottom
+                showOverlayForInteraction()
+            }
+        }
         .onPlayPauseCommand(perform: handlePlayPause)
         .onMoveCommand { dir in
             switch dir {
             case .left:
-                // 快退15s
                 vlcPlayer?.rewind(15)
+                overlayFocusTarget = .bottom
                 showOverlayForInteraction()
             case .right:
-                // 快进15s
                 vlcPlayer?.fastForward(15)
+                overlayFocusTarget = .bottom
                 showOverlayForInteraction()
-            case .up, .down:
+            case .up:
+                overlayFocusTarget = .top
+                showOverlayForInteraction()
+            case .down:
+                overlayFocusTarget = .bottom
                 showOverlayForInteraction()
             default:
                 showOverlayForInteraction()
@@ -107,6 +135,7 @@ struct VLCPlayerView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("DanmakuDebugToggle"))) { _ in
             withAnimation { showDanmakuDebug.toggle() }
         }
+        .onAppear { isMainFocused = true }
         
         // 浮窗展示
         .smallMenuOverlay(isPresented: $showingAudioTrackOverlay, title: "音轨选择") {
@@ -148,7 +177,7 @@ struct VLCPlayerView: View {
     
     // 拆分顶部/底部 overlay 以降低类型推断复杂度
     @ViewBuilder
-    private func topOverlayView(for player: VLCMediaPlayer) -> some View {
+    private func topOverlayView(for player: VLCMediaPlayer, shouldRequestFocus: Bool = false) -> some View {
         TopInformationOverlay(
             player: player,
             controlDelegate: PlayerControlDelegate(
@@ -161,14 +190,16 @@ struct VLCPlayerView: View {
                 onToggleDanmaku: handleToggleDanmaku,
                 onShowDanmakuMatch: { showingDanmakuMatchOverlay = true },
                 onShowDanmakuSettings: { showingDanmakuSettingsOverlay = true }
-            )
+            ),
+            shouldRequestFocus: shouldRequestFocus,
+            onRequestHide: { isMainFocused = true }
         )
         .transition(.move(edge: .top))
         .animation(.easeInOut(duration: 0.25), value: isOverlayVisible)
     }
 
     @ViewBuilder
-    private func bottomOverlayView(for player: VLCMediaPlayer) -> some View {
+    private func bottomOverlayView(for player: VLCMediaPlayer, shouldRequestFocus: Bool = false) -> some View {
         BottomInformationOverlay(
             player: player,
             controlDelegate: PlayerControlDelegate(
@@ -181,7 +212,9 @@ struct VLCPlayerView: View {
                 onToggleDanmaku: handleToggleDanmaku,
                 onShowDanmakuMatch: { showingDanmakuMatchOverlay = true },
                 onShowDanmakuSettings: { showingDanmakuSettingsOverlay = true }
-            )
+            ),
+            shouldRequestFocus: shouldRequestFocus,
+            onRequestHide: { isMainFocused = true }
         )
         .transition(.move(edge: .bottom))
         .animation(.easeInOut(duration: 0.25), value: isOverlayVisible)
@@ -266,22 +299,12 @@ struct VLCPlayerView: View {
     }
     
     private func loadDanmakuForEpisode(_ episode: DanDanPlayEpisode) {
-        DanDanPlayAPI().loadDanmakuAsASS(for: episode) { result in
+        DanDanPlayAPI().loadDanmakuComments(for: episode) { result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let assContent):
-                    danmakuLogger.add("ASS弹幕加载成功，大小=\(assContent.count) 字节")
-                    // 直接使用ASS内容，不再重新解析生成弹幕评论
-                    if let danmakuData = assContent.data(using: .utf8) {
-                        // 将弹幕添加到VLC字幕轨，如播放器未就绪则暂存，待就绪后加载
-                        if let player = vlcPlayer {
-                            player.loadDanmakuAsSubtitle(danmakuData, format: .ass)
-                            danmakuLogger.add("已请求播放器加载弹幕字幕轨")
-                        } else {
-                            pendingDanmakuData = danmakuData
-                            danmakuLogger.add("播放器未就绪，暂存弹幕数据等待加载")
-                        }
-                    }
+                case .success(let comments):
+                    danmakuLogger.add("弹幕加载成功：\(comments.count) 条（自绘模式）")
+                    overlayDanmaku = comments
                     
                 case .failure(let error):
                     danmakuLogger.add("加载弹幕失败: \(error.localizedDescription)")
@@ -308,14 +331,14 @@ struct VLCPlayerView: View {
         guard let player = vlcPlayer else { return }
         
         if player.isPlaying {
-            player.pause()
+            DispatchQueue.main.async { player.pause() }
             // 暂停时显示覆盖层
             withAnimation(.easeInOut(duration: 0.3)) {
                 isOverlayVisible = true
             }
             resetOverlayTimer()
         } else {
-            player.play()
+            DispatchQueue.main.async { player.play() }
             // 播放时隐藏覆盖层
             withAnimation(.easeInOut(duration: 0.3)) {
                 isOverlayVisible = false
@@ -326,7 +349,7 @@ struct VLCPlayerView: View {
 
     private func startPlaybackIfNeeded() {
         guard !hasStartedPlayback, let player = vlcPlayer else { return }
-        player.play()
+        DispatchQueue.main.async { player.play() }
         hasStartedPlayback = true
         withAnimation(.easeInOut(duration: 0.3)) {
             isOverlayVisible = false
@@ -620,7 +643,7 @@ class VLCVideoPlayerUIView: UIView {
 struct DanmakuSettings {
     var isEnabled = true
     var opacity: Double = 0.8
-    var fontSize: Double = 18
+    var maxLines: Int = 18
     var speed: Double = 1.0
     var maxCount = 50
     var density: Double = 0.8

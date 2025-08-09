@@ -82,10 +82,16 @@ struct TopInformationOverlay: View {
     
     @State private var isVisible: Bool = true
     @State private var hideTimer: Timer?
+    @FocusState private var isTopDefaultFocused: Bool
     
-    init(player: VLCMediaPlayer, controlDelegate: VLCPlayerControlDelegate? = nil) {
+    private let shouldRequestFocus: Bool
+    private let onRequestHide: (() -> Void)?
+
+    init(player: VLCMediaPlayer, controlDelegate: VLCPlayerControlDelegate? = nil, shouldRequestFocus: Bool = false, onRequestHide: (() -> Void)? = nil) {
         self.playerState = VLCPlayerState(player: player)
         self.controlDelegate = controlDelegate
+        self.shouldRequestFocus = shouldRequestFocus
+        self.onRequestHide = onRequestHide
     }
     
     var body: some View {
@@ -96,8 +102,18 @@ struct TopInformationOverlay: View {
         }
         .background(overlayTopGradient)
         .opacity(isVisible ? 1 : 0)
-        .onAppear { startHideTimer() }
+        .onAppear {
+            startHideTimer()
+            if shouldRequestFocus {
+                DispatchQueue.main.async { isTopDefaultFocused = true }
+            }
+        }
+        .onExitCommand {
+            withAnimation(.easeInOut(duration: 0.25)) { isVisible = false }
+            onRequestHide?()
+        }
         .onReceive(playerState.$isPlaying) { $0 ? startHideTimer() : showOverlay() }
+        .focusSection()
     }
     
     // MARK: - 子视图
@@ -112,6 +128,7 @@ struct TopInformationOverlay: View {
                 .foregroundColor(.white)
                 .font(.body)
             }
+            .focused($isTopDefaultFocused)
             
             Spacer()
             
@@ -229,6 +246,7 @@ struct TopInformationOverlay: View {
     private func showOverlay() {
         hideTimer?.invalidate()
         isVisible = true
+        DispatchQueue.main.async { isTopDefaultFocused = true }
     }
     
     private func startHideTimer() {
@@ -237,6 +255,7 @@ struct TopInformationOverlay: View {
             withAnimation(.easeInOut(duration: 0.3)) {
                 isVisible = false
             }
+            onRequestHide?()
         }
     }
 }
@@ -249,10 +268,17 @@ struct BottomInformationOverlay: View {
     @State private var isVisible: Bool = true
     @State private var hideTimer: Timer?
 
-    init(player: VLCMediaPlayer, controlDelegate: VLCPlayerControlDelegate? = nil) {
+    private let shouldRequestFocus: Bool
+    private let onRequestHide: (() -> Void)?
+
+    init(player: VLCMediaPlayer, controlDelegate: VLCPlayerControlDelegate? = nil, shouldRequestFocus: Bool = false, onRequestHide: (() -> Void)? = nil) {
         self.playerState = VLCPlayerState(player: player)
         self.controlDelegate = controlDelegate
+        self.shouldRequestFocus = shouldRequestFocus
+        self.onRequestHide = onRequestHide
     }
+
+    @FocusState private var isBottomDefaultFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -261,8 +287,18 @@ struct BottomInformationOverlay: View {
         }
         .background(overlayBottomGradient)
         .opacity(isVisible ? 1 : 0)
-        .onAppear { startHideTimer() }
+        .onAppear {
+            startHideTimer()
+            if shouldRequestFocus {
+                DispatchQueue.main.async { isBottomDefaultFocused = true }
+            }
+        }
+        .onExitCommand {
+            withAnimation(.easeInOut(duration: 0.25)) { isVisible = false }
+            onRequestHide?()
+        }
         .onReceive(playerState.$isPlaying) { $0 ? startHideTimer() : showOverlay() }
+        .focusSection()
     }
 
     private var bottomControlBar: some View {
@@ -282,6 +318,7 @@ struct BottomInformationOverlay: View {
             Button(action: { playerState.player.fastForward(15) }) { Image(systemName: "goforward.15").font(.title2).foregroundColor(.white) }
             overlayButton(icon: "captions.bubble", title: "字幕") { controlDelegate?.playerDidRequestSubtitleSelection() }
         }
+        .focused($isBottomDefaultFocused)
     }
 
     private var progressSection: some View {
@@ -309,11 +346,16 @@ struct BottomInformationOverlay: View {
         }
     }
 
-    private func showOverlay() { hideTimer?.invalidate(); isVisible = true }
+    private func showOverlay() {
+        hideTimer?.invalidate()
+        isVisible = true
+        DispatchQueue.main.async { isBottomDefaultFocused = true }
+    }
     private func startHideTimer() {
         hideTimer?.invalidate()
         hideTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
             withAnimation(.easeInOut(duration: 0.25)) { isVisible = false }
+            onRequestHide?()
         }
     }
 }
@@ -340,7 +382,13 @@ class VLCPlayerState: ObservableObject {
         duration = player.formattedDuration
         progress = player.playbackProgress
     }
-    func togglePlayback() { player.isPlaying ? player.pause() : player.play() }
+    func togglePlayback() {
+        if player.isPlaying {
+            DispatchQueue.main.async { self.player.pause() }
+        } else {
+            DispatchQueue.main.async { self.player.play() }
+        }
+    }
 }
 
 // MARK: - VLC 进度条组件

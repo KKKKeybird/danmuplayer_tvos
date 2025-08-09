@@ -25,40 +25,27 @@ class DanDanPlayCache {
     }
     
     
-    // MARK: - ASS字幕缓存
-    
-    /// 缓存ASS字幕文件（2小时）
-    func cacheASSSubtitle(_ assContent: String, for episodeId: Int) {
+    // MARK: - 弹幕（结构化）缓存，替代 ASS 缓存
+    func cacheDanmakuComments(_ comments: [DanmakuComment], for episodeId: Int, ttl: TimeInterval = 2 * 3600) {
         do {
-            let cacheTime: TimeInterval = 2 * 3600  // 2小时
-            let item = try DanDanPlayCachedItem(data: assContent.data(using: .utf8) ?? Data(), expiryDate: Date().addingTimeInterval(cacheTime))
-            let key = "ass_\(episodeId)" as NSString
+            let item = try DanDanPlayCachedItem(data: try JSONEncoder().encode(comments), expiryDate: Date().addingTimeInterval(ttl))
+            let key = "danmu_\(episodeId)" as NSString
             cache.setObject(item, forKey: key)
-            
-            // 保存到磁盘
             saveToDisk(item, key: String(key))
         } catch {
-            print("缓存ASS字幕失败: \(error)")
+            print("缓存弹幕失败: \(error)")
         }
     }
     
-    /// 获取缓存的ASS字幕内容
-    func getCachedASSSubtitle(for episodeId: Int) -> String? {
-        let key = "ass_\(episodeId)" as NSString
-        
-        // 先检查内存缓存
-        if let item = cache.object(forKey: key), !item.isExpired,
-           let data = item.data as? Data {
-            return String(data: data, encoding: .utf8)
+    func getCachedDanmakuComments(for episodeId: Int) -> [DanmakuComment]? {
+        let key = "danmu_\(episodeId)" as NSString
+        if let item = cache.object(forKey: key), !item.isExpired, let data = item.data as? Data {
+            return try? JSONDecoder().decode([DanmakuComment].self, from: data)
         }
-        
-        // 检查磁盘缓存
-        if let item = loadFromDisk(key: String(key)), !item.isExpired,
-           let data = item.data as? Data {
+        if let item = loadFromDisk(key: String(key)), !item.isExpired, let data = item.data as? Data {
             cache.setObject(item, forKey: key)
-            return String(data: data, encoding: .utf8)
+            return try? JSONDecoder().decode([DanmakuComment].self, from: data)
         }
-        
         return nil
     }
     
@@ -170,12 +157,13 @@ class DanDanPlayCache {
     
     /// 清理指定剧集的相关缓存（包括弹幕和ASS字幕）
     func clearEpisodeCache(episodeId: Int, episodeNumber: Int? = nil) {
-        // 清理ASS字幕缓存
-        let assKey = "ass_\(episodeId)" as NSString
-        cache.removeObject(forKey: assKey)
-        
-        let assFileURL = cacheDirectory.appendingPathComponent("\(assKey).cache")
-        try? fileManager.removeItem(at: assFileURL)
+        // 清理旧的 ASS 缓存与新的弹幕缓存
+        for prefix in ["ass_", "danmu_"] {
+            let key = "\(prefix)\(episodeId)" as NSString
+            cache.removeObject(forKey: key)
+            let fileURL = cacheDirectory.appendingPathComponent("\(key).cache")
+            try? fileManager.removeItem(at: fileURL)
+        }
         
         print("已清理剧集 \(episodeId) 的相关缓存")
     }

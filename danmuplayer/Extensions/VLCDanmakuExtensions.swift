@@ -22,22 +22,15 @@ extension VLCMediaPlayer {
                 DanmakuDebugLogger.shared.add("弹幕字幕文件写入成功: \(subtitleURL.lastPathComponent)")
             }
             
-            // 使用addPlaybackSlave添加额外的字幕轨道，不会替换原有字幕
-            // 使用.subtitle类型确保作为字幕轨道添加
-            // enforce: false 表示不强制替换现有字幕
-            let result = addPlaybackSlave(subtitleURL, type: .subtitle, enforce: false)
-            
-            if result == 0 {
-                DispatchQueue.main.async {
+            // 在主线程调用 VLC 接口，避免触发非主线程修改图层
+            DispatchQueue.main.async {
+                let result = self.addPlaybackSlave(subtitleURL, type: .subtitle, enforce: false)
+                if result == 0 {
                     DanmakuDebugLogger.shared.add("addPlaybackSlave 成功，等待启用弹幕字幕轨道")
-                }
-                
-                // 获取新增的字幕轨道索引并启用弹幕字幕
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.enableDanmakuSubtitleTrack()
-                }
-            } else {
-                DispatchQueue.main.async {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.enableDanmakuSubtitleTrack()
+                    }
+                } else {
                     DanmakuDebugLogger.shared.add("addPlaybackSlave 失败，错误代码: \(result)")
                 }
             }
@@ -58,9 +51,8 @@ extension VLCMediaPlayer {
         // 查找弹幕字幕轨道（通常是最后添加的）
         for (index, name) in zip(trackIndexes, trackNames) {
             if name.contains("danmaku") || index == trackIndexes.last {
-                // 设置为当前字幕轨道（不会禁用原有视频字幕）
-                currentVideoSubTitleIndex = Int32(index)
                 DispatchQueue.main.async {
+                    self.currentVideoSubTitleIndex = Int32(index)
                     DanmakuDebugLogger.shared.add("启用弹幕字幕轨道: \(name) (索引: \(index))")
                 }
                 break
@@ -79,11 +71,9 @@ extension VLCMediaPlayer {
         guard let trackIndexes = videoSubTitlesIndexes as? [Int] else { return }
         guard let trackNames = videoSubTitlesNames as? [String] else { return }
         
-        // 查找并移除弹幕字幕轨道
+        // 查找并移除弹幕字幕轨道（通过切换轨道实现）
         for (index, name) in zip(trackIndexes, trackNames) {
             if name.contains("danmaku") {
-                // 注意：VLC可能不支持动态移除slave轨道
-                // 这里我们通过设置为禁用状态来"移除"
                 DispatchQueue.main.async {
                     DanmakuDebugLogger.shared.add("找到弹幕字幕轨道: \(name) (索引: \(index))，禁用之")
                 }
@@ -93,13 +83,13 @@ extension VLCMediaPlayer {
         
         // 恢复原有的字幕轨道（如果有的话）
         if let originalTrack = originalSubtitleTrack {
-            currentVideoSubTitleIndex = Int32(originalTrack)
+            DispatchQueue.main.async { self.currentVideoSubTitleIndex = Int32(originalTrack) }
             DispatchQueue.main.async {
                 DanmakuDebugLogger.shared.add("已恢复原始字幕轨道: \(originalTrack)")
             }
         } else {
             // 如果没有原始字幕，则禁用字幕显示
-            currentVideoSubTitleIndex = Int32(0) // 0 通常表示禁用字幕
+            DispatchQueue.main.async { self.currentVideoSubTitleIndex = Int32(0) } // 0 通常表示禁用字幕
             DispatchQueue.main.async {
                 DanmakuDebugLogger.shared.add("已禁用字幕显示")
             }

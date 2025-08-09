@@ -14,21 +14,25 @@ struct WebDAVSortView: View {
             List {
                 Section(header: Text("排序方式")) {
                     ForEach(sortOptions, id: \.self) { option in
-                        HStack {
-                            Image(systemName: option.systemImage)
-                            Text(option.displayName)
-                            Spacer()
-                            if selectedOption == option { Image(systemName: "checkmark") }
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
+                        Button {
                             selectedOption = option
                             onSelectionChanged(option)
                             isPresented = false
+                        } label: {
+                            HStack {
+                                Image(systemName: option.systemImage)
+                                Text(option.displayName)
+                                Spacer()
+                                if selectedOption == option { Image(systemName: "checkmark") }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
+            .listStyle(PlainListStyle())
             .navigationTitle("排序")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

@@ -24,10 +24,10 @@ struct DanmaSettingPopover: View {
                         }, onPlus: {
                             if settings.opacity < 1.0 { settings.opacity = min(1.0, settings.opacity + 0.1) }
                         })
-                        settingStepper(title: "字体大小", value: Int(settings.fontSize), unit: "", onMinus: {
-                            if settings.fontSize > 10 { settings.fontSize = max(10, settings.fontSize - 1) }
+                        settingStepper(title: "最大行数", value: settings.maxLines, unit: "", onMinus: {
+                            if settings.maxLines > 4 { settings.maxLines = max(4, settings.maxLines - 1) }
                         }, onPlus: {
-                            if settings.fontSize < 30 { settings.fontSize = min(30, settings.fontSize + 1) }
+                            if settings.maxLines < 20 { settings.maxLines = min(20, settings.maxLines + 1) }
                         })
                         settingStepper(title: "滚动速度", value: Int(settings.speed * 10), unit: "x", onMinus: {
                             if settings.speed > 0.5 { settings.speed = max(0.5, settings.speed - 0.1) }
