@@ -8,55 +8,18 @@ struct JellyfinSortSelectionPopoverTV: View {
     @Namespace private var focusNamespace
 
     var body: some View {
-        ZStack {
-            backgroundOverlay
-            mainContent
-        }
-        .scaleEffect(isPresented ? 1 : 0.8)
-        .opacity(isPresented ? 1 : 0)
-        .animation(.easeOut(duration: 0.3), value: isPresented)
-        .onAppear {
-            focusedOption = selectedOption
-        }
-    }
-    
-    private var backgroundOverlay: some View {
-        Color.black.opacity(0.4)
-            .ignoresSafeArea()
-            .onTapGesture {
-                isPresented = false
-            }
-    }
-    
-    private var mainContent: some View {
+        // 仅渲染列表内容，背景与标题由 SmallMenuOverlay 提供
         VStack(spacing: 0) {
-            headerView
-            Divider()
             optionsList
         }
         .frame(width: 660)
         .background(popoverBackground)
         .focusScope(focusNamespace)
+        .animation(.easeOut(duration: 0.25), value: isPresented)
+        .onAppear { focusedOption = selectedOption }
     }
     
-    private var headerView: some View {
-        HStack {
-            Text("排序方式")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            Spacer()
-            Button {
-                isPresented = false
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title)
-                    .opacity(0.7)
-            }
-            .buttonStyle(.plain)
-            .focusable()
-        }
-        .padding()
-    }
+    // 头部由 SmallMenuOverlay 提供
     
     private var optionsList: some View {
         VStack(spacing: 8) {
@@ -82,10 +45,10 @@ struct JellyfinSortSelectionPopoverTV: View {
                         .foregroundColor(.accentColor)
                 }
             }
-            .padding()
+            .padding(14)
             .background {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(focusedOption == option ? Color.accentColor.opacity(0.3) : Color.clear)
+                    .fill(focusedOption == option ? Color.accentColor.opacity(0.25) : Color.clear)
             }
         }
         .buttonStyle(.plain)

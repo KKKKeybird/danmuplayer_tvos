@@ -3,7 +3,6 @@
 //
 
 import SwiftUI
-import VLCKitSPM
 
 /// 通用小菜单覆盖层，用于替换tvOS不支持的popover
 struct SmallMenuOverlay<Content: View>: View {
@@ -11,8 +10,6 @@ struct SmallMenuOverlay<Content: View>: View {
     @Binding var isPresented: Bool
     let title: String
     let content: () -> Content
-    
-    @FocusState private var isFocused: Bool
     
     init(isPresented: Binding<Bool>, title: String, @ViewBuilder content: @escaping () -> Content) {
         self._isPresented = isPresented
@@ -60,16 +57,12 @@ struct SmallMenuOverlay<Content: View>: View {
                         )
                 }
                 .padding()
-                .focusable()
-                .focused($isFocused)
             }
             .transition(.opacity.combined(with: .scale(scale: 0.8)))
-            .onAppear {
-                isFocused = true
-            }
             .onExitCommand {
                 isPresented = false
             }
+            .zIndex(1000)
         }
     }
 }

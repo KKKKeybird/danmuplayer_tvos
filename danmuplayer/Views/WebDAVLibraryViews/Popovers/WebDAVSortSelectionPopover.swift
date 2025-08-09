@@ -13,58 +13,23 @@ struct WebDAVSortSelectionPopover: View {
     private let sortOptions: [FileBrowserViewModel.SortOption] = [.name, .date, .size]
     
     var body: some View {
-        ZStack {
-            backgroundOverlay
-            mainContent
-        }
-        .animation(.easeInOut(duration: 0.25), value: isPresented)
-        .onAppear {
-            focusedOption = selectedOption
-        }
-    }
-    
-    private var backgroundOverlay: some View {
-        Color.black.opacity(0.4)
-            .ignoresSafeArea()
-            .onTapGesture {
-                isPresented = false
-            }
-    }
-    
-    private var mainContent: some View {
+        // 仅渲染弹窗内容，由外层 SmallMenuOverlay 负责背景与标题
         VStack(spacing: 0) {
-            headerView
-            Divider()
             optionsList
         }
         .frame(width: 500)
         .background(popoverBackground)
         .focusScope(focusNamespace)
+        .animation(.easeInOut(duration: 0.2), value: isPresented)
+        .onAppear { focusedOption = selectedOption }
     }
     
-    private var headerView: some View {
-        HStack {
-            Text("排序方式")
-                .font(.title3)
-                .fontWeight(.semibold)
-            Spacer()
-            Button {
-                isPresented = false
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
-    }
+    // 头部已交由 SmallMenuOverlay 提供标题与关闭按钮
     
     private var popoverBackground: some View {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .fill(Color.black.opacity(0.95))
-            .shadow(radius: 25)
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color.black.opacity(0.9))
+            .shadow(radius: 20)
     }
     
     private var optionsList: some View {
@@ -107,7 +72,10 @@ struct WebDAVSortSelectionPopover: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
-        .padding(.vertical, 20)
-        .background(focusedOption == option ? Color.accentColor.opacity(0.3) : Color.clear)
+        .padding(.vertical, 18)
+        .background {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(focusedOption == option ? Color.accentColor.opacity(0.25) : Color.clear)
+        }
     }
 }

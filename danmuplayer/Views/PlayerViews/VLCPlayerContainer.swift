@@ -65,25 +65,8 @@ struct VLCPlayerContainer: View {
             return FileManager.default.fileExists(atPath: url.path)
         }
         
-        // 对于网络URL，进行简单的可达性检查
-        var request = URLRequest(url: url)
-        request.httpMethod = "HEAD"
-        request.timeoutInterval = 5.0
-        
-        let semaphore = DispatchSemaphore(value: 0)
-        var isAccessible = false
-        
-        URLSession.shared.dataTask(with: request) { _, response, error in
-            if let httpResponse = response as? HTTPURLResponse {
-                isAccessible = httpResponse.statusCode < 400
-            } else {
-                isAccessible = error == nil
-            }
-            semaphore.signal()
-        }.resume()
-        
-        semaphore.wait()
-        return isAccessible
+        // 对于网络URL：某些服务器不支持 HEAD，这里放宽校验，始终允许进入播放器，由播放器自行处理失败
+        return true
     }
 }
 

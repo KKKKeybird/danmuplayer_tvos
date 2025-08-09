@@ -381,34 +381,36 @@ struct JellyfinLibrarySelectionSheet: View {
                 // 媒体库列表
                 List {
                     ForEach(availableLibraries, id: \.id) { library in
-                        HStack(spacing: 12) {
-                            let isSelected = localSelectedIds.contains(library.id)
-                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(isSelected ? .accentColor : .secondary)
-                                .font(.title3)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(library.name)
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                                
-                                if let type = library.collectionType {
-                                    Text(type.capitalized)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            
-                            Spacer()
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
+                        Button {
                             if localSelectedIds.contains(library.id) {
                                 localSelectedIds.remove(library.id)
                             } else {
                                 localSelectedIds.insert(library.id)
                             }
+                        } label: {
+                            HStack(spacing: 12) {
+                                let isSelected = localSelectedIds.contains(library.id)
+                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                                    .font(.title3)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(library.name)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                    
+                                    if let type = library.collectionType {
+                                        Text(type.capitalized)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .listStyle(PlainListStyle())
