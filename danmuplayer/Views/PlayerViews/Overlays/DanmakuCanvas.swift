@@ -12,9 +12,6 @@ struct DanmakuCanvas: View {
     @State private var scrollingLaneById: [UUID: Int] = [:]
     @State private var topLaneById: [UUID: Int] = [:]
     @State private var bottomLaneById: [UUID: Int] = [:]
-    @State private var scrollingLaneEndTime: [Int: Double] = [:]
-    @State private var topLaneEndTime: [Int: Double] = [:]
-    @State private var bottomLaneEndTime: [Int: Double] = [:]
 
     // 预计算：按时间窗口过滤，简单实现
     private var visibleComments: [DanmakuComment] {
@@ -51,6 +48,9 @@ struct DanmakuCanvas: View {
             }
             .frame(width: size.width, height: size.height)
             .allowsHitTesting(false)
+            .onChange(of: comments) { _ in recomputeLanes() }
+            .onChange(of: settings.maxLines) { _ in recomputeLanes() }
+            .onAppear { recomputeLanes() }
         }
     }
 
@@ -90,66 +90,49 @@ struct DanmakuCanvas: View {
     }
 
     // MARK: - 轨道分配（仅首次出现时确定）
-    private func laneForScrolling(comment c: DanmakuComment) -> Int {
-        if let lane = scrollingLaneById[c.id] { return lane }
-        let lines = max(1, settings.maxLines)
-        let duration = 8.0 / settings.speed
-        let start = c.time
-        let end = c.time + duration
-        // 找空闲轨道
-        for lane in 0..<lines {
-            let lastEnd = scrollingLaneEndTime[lane] ?? -Double.infinity
-            if start >= lastEnd {
-                scrollingLaneById[c.id] = lane
-                scrollingLaneEndTime[lane] = end
-                return lane
-            }
-        }
-        // 若都占用，放入最早结束的轨道
-        let chosen = (0..<lines).min { (scrollingLaneEndTime[$0] ?? 0) < (scrollingLaneEndTime[$1] ?? 0) } ?? 0
-        scrollingLaneById[c.id] = chosen
-        scrollingLaneEndTime[chosen] = max(end, scrollingLaneEndTime[chosen] ?? end)
-        return chosen
-    }
+    private func laneForScrolling(comment c: DanmakuComment) -> Int { scrollingLaneById[c.id] ?? 0 }
+    private func laneForTop(comment c: DanmakuComment) -> Int { topLaneById[c.id] ?? 0 }
+    private func laneForBottom(comment c: DanmakuComment) -> Int { bottomLaneById[c.id] ?? 0 }
 
-    private func laneForTop(comment c: DanmakuComment) -> Int {
-        if let lane = topLaneById[c.id] { return lane }
+    // 预分配轨道：仅在 comments / maxLines / speed 变化时重算，避免在 body 中改 State
+    private func recomputeLanes() {
         let lines = max(1, settings.maxLines)
-        let duration = 3.0
-        let start = c.time
-        let end = c.time + duration
-        for lane in 0..<lines {
-            let lastEnd = topLaneEndTime[lane] ?? -Double.infinity
-            if start >= lastEnd {
-                topLaneById[c.id] = lane
-                topLaneEndTime[lane] = end
-                return lane
-            }
+        let fiveSec = 5.0
+        // 滚动
+        var queue: [(time: Double, lane: Int)] = []
+        var used: [UUID: Int] = [:]
+        for c in comments.filter({ $0.isScrolling }).sorted(by: { $0.time < $1.time }) {
+            // 移除窗口外
+            queue.removeAll { $0.time < c.time - fiveSec }
+            let usedLanes = Set(queue.map { $0.lane })
+            var chosen = 0
+            for lane in 0..<lines { if !usedLanes.contains(lane) { chosen = lane; break } }
+            used[c.id] = chosen
+            queue.append((c.time, chosen))
         }
-        let chosen = (0..<lines).min { (topLaneEndTime[$0] ?? 0) < (topLaneEndTime[$1] ?? 0) } ?? 0
-        topLaneById[c.id] = chosen
-        topLaneEndTime[chosen] = max(end, topLaneEndTime[chosen] ?? end)
-        return chosen
-    }
-
-    private func laneForBottom(comment c: DanmakuComment) -> Int {
-        if let lane = bottomLaneById[c.id] { return lane }
-        let lines = max(1, settings.maxLines)
-        let duration = 3.0
-        let start = c.time
-        let end = c.time + duration
-        for lane in 0..<lines {
-            let lastEnd = bottomLaneEndTime[lane] ?? -Double.infinity
-            if start >= lastEnd {
-                bottomLaneById[c.id] = lane
-                bottomLaneEndTime[lane] = end
-                return lane
-            }
+        scrollingLaneById = used
+        // 顶部
+        queue.removeAll(); used.removeAll()
+        for c in comments.filter({ $0.isTop }).sorted(by: { $0.time < $1.time }) {
+            queue.removeAll { $0.time < c.time - fiveSec }
+            let usedLanes = Set(queue.map { $0.lane })
+            var chosen = 0
+            for lane in 0..<lines { if !usedLanes.contains(lane) { chosen = lane; break } }
+            used[c.id] = chosen
+            queue.append((c.time, chosen))
         }
-        let chosen = (0..<lines).min { (bottomLaneEndTime[$0] ?? 0) < (bottomLaneEndTime[$1] ?? 0) } ?? 0
-        bottomLaneById[c.id] = chosen
-        bottomLaneEndTime[chosen] = max(end, bottomLaneEndTime[chosen] ?? end)
-        return chosen
+        topLaneById = used
+        // 底部
+        queue.removeAll(); used.removeAll()
+        for c in comments.filter({ $0.isBottom }).sorted(by: { $0.time < $1.time }) {
+            queue.removeAll { $0.time < c.time - fiveSec }
+            let usedLanes = Set(queue.map { $0.lane })
+            var chosen = 0
+            for lane in 0..<lines { if !usedLanes.contains(lane) { chosen = lane; break } }
+            used[c.id] = chosen
+            queue.append((c.time, chosen))
+        }
+        bottomLaneById = used
     }
 }
 
