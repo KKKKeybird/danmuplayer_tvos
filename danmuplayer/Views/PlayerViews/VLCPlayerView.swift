@@ -14,12 +14,11 @@ struct VLCPlayerView: View {
     
     // MARK: - State管理
     @StateObject private var viewModel: VLCPlayerViewModel
-    @StateObject private var danmakuManager: DanmakuManager
     @StateObject private var overlayTimer = TimerProxy()
     
     @State private var vlcPlayer: VLCMediaPlayer?
     @State private var isOverlayVisible = true
-    @State private var currentOverlayType: OverlayType = .information
+    @State private var currentOverlayType: InformationOverlay.OverlayType = .main
     @State private var currentTime: Double = 0
     @State private var duration: Double = 0
     @State private var isPlaying = false
@@ -38,14 +37,6 @@ struct VLCPlayerView: View {
     @State private var selectedEpisode: DanDanPlayEpisode?
     @State private var danmakuSettings = DanmakuSettings()
     
-    enum OverlayType {
-        case information
-        case audioTrack
-        case subtitle
-        case danmakuMatch
-        case danmakuSettings
-    }
-    
     // MARK: - 初始化
     
     init(videoURL: URL, originalFileName: String, subtitleURLs: [URL] = [], onDismiss: @escaping () -> Void) {
@@ -58,7 +49,6 @@ struct VLCPlayerView: View {
             videoURL: videoURL,
             originalFileName: originalFileName
         ))
-        self._danmakuManager = StateObject(wrappedValue: DanmakuManager())
     }
     
     // MARK: - 主视图
@@ -84,32 +74,18 @@ struct VLCPlayerView: View {
                 cleanup()
             }
             
-            // 弹幕覆盖层
-            if isDanmakuEnabled && !danmakuComments.isEmpty {
-                DanmakuOverlayLayer(
-                    comments: danmakuComments,
-                    currentTime: currentTime,
-                    settings: danmakuSettings
-                )
-            }
-            
             // 信息覆盖层，默认隐藏，用户操作时滑入，超时或恢复播放后滑出
-            if isOverlayVisible {
+            if isOverlayVisible, let player = vlcPlayer {
                 InformationOverlay(
-                    isVisible: $isOverlayVisible,
-                    currentTime: $currentTime,
-                    duration: $duration,
-                    isPlaying: $isPlaying,
-                    currentOverlayType: $currentOverlayType,
-                    vlcPlayer: vlcPlayer,
-                    onSeek: handleSeek,
-                    onPlayPause: handlePlayPause,
-                    onShowAudioTracks: { showingAudioTrackOverlay = true },
-                    onShowSubtitles: { showingSubtitleOverlay = true },
-                    onToggleDanmaku: handleToggleDanmaku,
-                    onShowDanmakuMatch: { showingDanmakuMatchOverlay = true },
-                    onShowDanmakuSettings: { showingDanmakuSettingsOverlay = true },
-                    onDismiss: onDismiss
+                    player: player,
+                    controlDelegate: PlayerControlDelegate(
+                        onDismiss: onDismiss,
+                        onShowAudioTracks: { showingAudioTrackOverlay = true },
+                        onShowSubtitles: { showingSubtitleOverlay = true },
+                        onToggleDanmaku: handleToggleDanmaku,
+                        onShowDanmakuMatch: { showingDanmakuMatchOverlay = true },
+                        onShowDanmakuSettings: { showingDanmakuSettingsOverlay = true }
+                    )
                 )
                 .transition(.move(edge: .bottom))
                 .animation(.easeInOut(duration: 0.3), value: isOverlayVisible)
@@ -130,15 +106,6 @@ struct VLCPlayerView: View {
         }
         .background(Color.black)
         .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 10, coordinateSpace: .local)
-                .onChanged { _ in
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isOverlayVisible = true
-                    }
-                    resetOverlayTimer()
-                }
-        )
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.3)) {
                 isOverlayVisible = true
@@ -149,20 +116,20 @@ struct VLCPlayerView: View {
         .onExitCommand(perform: onDismiss)
         
         // 浮窗展示
-        .popover(isPresented: $showingAudioTrackOverlay, arrowEdge: .bottom) {
+        .smallMenuOverlay(isPresented: $showingAudioTrackOverlay, title: "音轨选择") {
             SoundTrackPopover(
                 isPresented: $showingAudioTrackOverlay,
                 vlcPlayer: vlcPlayer
             )
         }
-        .popover(isPresented: $showingSubtitleOverlay, arrowEdge: .bottom) {
+        .smallMenuOverlay(isPresented: $showingSubtitleOverlay, title: "字幕选择") {
             SubTrackPopover(
                 isPresented: $showingSubtitleOverlay,
                 vlcPlayer: vlcPlayer,
                 externalSubtitles: getExternalSubtitles()
             )
         }
-        .popover(isPresented: $showingDanmakuMatchOverlay, arrowEdge: .bottom) {
+        .smallMenuOverlay(isPresented: $showingDanmakuMatchOverlay, title: "弹幕匹配") {
             DanmaSelectPopover(
                 candidateEpisodes: candidateEpisodes,
                 videoURL: videoURL,
@@ -175,7 +142,7 @@ struct VLCPlayerView: View {
                 }
             )
         }
-        .popover(isPresented: $showingDanmakuSettingsOverlay, arrowEdge: .bottom) {
+        .smallMenuOverlay(isPresented: $showingDanmakuSettingsOverlay, title: "弹幕设置") {
             DanmaSettingPopover(settings: $danmakuSettings)
         }
     }
@@ -212,7 +179,6 @@ struct VLCPlayerView: View {
     private func cleanup() {
         vlcPlayer?.stop()
         overlayTimer.stop()
-        danmakuManager.clearCache()
     }
     
     private func identifyAndLoadDanmaku() {
@@ -254,10 +220,8 @@ struct VLCPlayerView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let assContent):
-                    // 解析弹幕数据
+                    // 直接使用ASS内容，不再重新解析生成弹幕评论
                     if let danmakuData = assContent.data(using: .utf8) {
-                        danmakuComments = DanmakuParser.parseComments(from: danmakuData)
-                        
                         // 将弹幕添加到VLC字幕轨
                         if let player = vlcPlayer {
                             player.loadDanmakuAsSubtitle(danmakuData, format: .ass)
@@ -419,11 +383,11 @@ struct VLCUIVideoPlayerView: View {
             guard let player = vlcPlayer else { return }
             
             DispatchQueue.main.async {
-                if let time = player.time {
-                    currentTime = Double(time.intValue) / 1000.0
-                }
+                let time = player.time
+                currentTime = Double(time.intValue) / 1000.0
                 
-                if let media = player.media, let mediaLength = media.length {
+                if let media = player.media {
+                    let mediaLength = media.length
                     duration = Double(mediaLength.intValue) / 1000.0
                 }
                 
@@ -484,20 +448,6 @@ class VLCVideoPlayerUIView: UIView {
     }
 }
 
-// MARK: - 弹幕管理器
-
-class DanmakuManager: ObservableObject {
-    @Published var comments: [DanmakuComment] = []
-    
-    func loadComments(from data: Data) {
-        comments = DanmakuParser.parseComments(from: data)
-    }
-    
-    func clearCache() {
-        comments.removeAll()
-    }
-}
-
 // MARK: - 弹幕设置
 
 struct DanmakuSettings {
@@ -527,5 +477,57 @@ class TimerProxy: ObservableObject {
     func stop() {
         timer?.invalidate()
         timer = nil
+    }
+}
+
+// MARK: - 播放器控制委托
+
+@available(tvOS 17.0, *)
+class PlayerControlDelegate: VLCPlayerControlDelegate {
+    private let onDismiss: () -> Void
+    private let onShowAudioTracks: () -> Void
+    private let onShowSubtitles: () -> Void
+    private let onToggleDanmaku: () -> Void
+    private let onShowDanmakuMatch: () -> Void
+    private let onShowDanmakuSettings: () -> Void
+    
+    init(
+        onDismiss: @escaping () -> Void,
+        onShowAudioTracks: @escaping () -> Void,
+        onShowSubtitles: @escaping () -> Void,
+        onToggleDanmaku: @escaping () -> Void,
+        onShowDanmakuMatch: @escaping () -> Void,
+        onShowDanmakuSettings: @escaping () -> Void
+    ) {
+        self.onDismiss = onDismiss
+        self.onShowAudioTracks = onShowAudioTracks
+        self.onShowSubtitles = onShowSubtitles
+        self.onToggleDanmaku = onToggleDanmaku
+        self.onShowDanmakuMatch = onShowDanmakuMatch
+        self.onShowDanmakuSettings = onShowDanmakuSettings
+    }
+    
+    func playerDidRequestAudioTrackSelection() {
+        onShowAudioTracks()
+    }
+    
+    func playerDidRequestSubtitleSelection() {
+        onShowSubtitles()
+    }
+    
+    func playerDidRequestDanmakuToggle() {
+        onToggleDanmaku()
+    }
+    
+    func playerDidRequestDanmakuMatch() {
+        onShowDanmakuMatch()
+    }
+    
+    func playerDidRequestDanmakuSettings() {
+        onShowDanmakuSettings()
+    }
+    
+    func playerDidRequestDismiss() {
+        onDismiss()
     }
 }

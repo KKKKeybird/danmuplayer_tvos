@@ -12,12 +12,12 @@ struct DanDanPlayConfig {
     /// API AppId - 需要从DanDanPlay开发者后台获取
     /// 申请邮箱：kaedei@dandanplay.net
     /// 邮件标题：弹弹play开放平台申请
-    static let appId: String = "YOUR_APP_ID" // TODO: 替换为实际的AppId
+    static let appId: String = "6usgpabqfx" // TODO: 替换为实际的AppId
     
     /// API AppSecret - 需要从DanDanPlay开发者后台获取
     /// 安全警告：请不要在生产环境中硬编码AppSecret
     /// 发布前请确保代码混淆以防止密钥泄露
-    private static let appSecret: String = "YOUR_APP_SECRET" // TODO: 替换为实际的AppSecret
+    private static let appSecret: String = "cny7VQTHIfNJEbLiAaX6WcqpwD97yRTb" // TODO: 替换为实际的AppSecret
     
     /// 获取AppSecret（内部使用）
     /// 使用私有方法避免直接暴露AppSecret

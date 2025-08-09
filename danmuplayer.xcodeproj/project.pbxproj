@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		082CB98E2E464B8B00FDEE2E /* VLCUI in Frameworks */ = {isa = PBXBuildFile; productRef = 082CB98D2E464B8B00FDEE2E /* VLCUI */; };
 		085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 085DA4D62E44704D00C638F5 /* VLCKitSPM */; };
 		08B52A9F2E43927400D8EA9E /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 08B52A9E2E43926600D8EA9E /* README.md */; };
 /* End PBXBuildFile section */
@@ -46,6 +47,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				082CB98E2E464B8B00FDEE2E /* VLCUI in Frameworks */,
 				085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -75,6 +77,7 @@
 				0822C9492E42440B00609CE6 /* danmuplayerUITests */,
 				0822C9302E42440400609CE6 /* Products */,
 				08B52A9E2E43926600D8EA9E /* README.md */,
+				082CB98C2E464B8B00FDEE2E /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -86,6 +89,13 @@
 				0822C9462E42440B00609CE6 /* danmuplayerUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		082CB98C2E464B8B00FDEE2E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -188,6 +198,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */,
+				082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */,
 			);
 			productRefGroup = 0822C9302E42440400609CE6 /* Products */;
 			projectDirPath = "";
@@ -548,6 +559,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/LePips/VLCUI";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.7.3;
+			};
+		};
 		085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
@@ -559,6 +578,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		082CB98D2E464B8B00FDEE2E /* VLCUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */;
+			productName = VLCUI;
+		};
 		085DA4D62E44704D00C638F5 /* VLCKitSPM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */;

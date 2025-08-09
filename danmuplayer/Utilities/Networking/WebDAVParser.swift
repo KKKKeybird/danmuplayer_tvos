@@ -14,9 +14,11 @@ class WebDAVParser: NSObject, XMLParserDelegate {
     private var isParsingResponse = false
     
     // MARK: - 解析XML数据
-    /// - Parameter data: XML数据
+    /// - Parameters:
+    ///   - data: XML数据
+    ///   - currentPath: 当前请求的目录路径（用于过滤掉自身）
     /// - Returns: WebDAVItem数组
-    func parseDirectoryResponse(_ data: Data) throws -> [WebDAVItem] {
+    func parseDirectoryResponse(_ data: Data, currentPath: String) throws -> [WebDAVItem] {
         webDAVItems.removeAll()
         
         print("WebDAV Parser: Starting XML parsing")
@@ -35,12 +37,14 @@ class WebDAVParser: NSObject, XMLParserDelegate {
             throw NSError(domain: "WebDAVParser", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse XML"])
         }
         
-        print("WebDAV Parser: XML parsing completed, found \(webDAVItems.count) items")
+        print("WebDAV Parser: XML parsing completed, found \(webDAVItems.count) items (before filtering)")
         for (index, item) in webDAVItems.enumerated() {
             print("WebDAV Parser: Item \(index): '\(item.name)' at '\(item.path)' (dir: \(item.isDirectory))")
         }
-        
-        return webDAVItems
+        // 过滤掉当前目录本身
+        let filtered = webDAVItems.filter { $0.path != currentPath && $0.path != (currentPath.hasSuffix("/") ? String(currentPath.dropLast()) : currentPath + "/") }
+        print("WebDAV Parser: Filtered items, final count: \(filtered.count)")
+        return filtered
     }
     
     // MARK: - XMLParserDelegate

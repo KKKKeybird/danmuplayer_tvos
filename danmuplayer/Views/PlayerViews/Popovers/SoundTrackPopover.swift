@@ -85,7 +85,7 @@ struct SoundTrackPopover: View {
         .frame(width: 420)
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.systemBackground).opacity(0.98))
+                .fill(Color(.black).opacity(0.98))
                 .shadow(radius: 16)
         )
         .onAppear {
@@ -152,16 +152,3 @@ struct SoundTrackPopover: View {
     }
 }
 
-// MARK: - 预览
-
-#if DEBUG
-@available(tvOS 17.0, *)
-struct SoundTrackPopover_Previews: PreviewProvider {
-    static var previews: some View {
-        SoundTrackPopover(
-            isPresented: .constant(true),
-            vlcPlayer: nil
-        )
-    }
-}
-#endif

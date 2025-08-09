@@ -159,8 +159,7 @@ struct EpisodeCard: View {
             username: nil,
             password: nil,
             apiKey: nil,
-            userId: nil,
-            isMediaLibrary: false
+            userId: nil
         )),
         onPlay: { _ in }
     )

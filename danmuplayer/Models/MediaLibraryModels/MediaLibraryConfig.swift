@@ -32,8 +32,7 @@ struct MediaLibraryConfig: Codable, Identifiable {
     init(id: UUID = UUID(), name: String, serverURL: String, 
          serverType: MediaLibraryServerType = .webdav,
          username: String? = nil, password: String? = nil,
-         apiKey: String? = nil, userId: String? = nil,
-         isMediaLibrary: Bool = false) {
+         apiKey: String? = nil, userId: String? = nil) {
         self.id = id
         self.name = name
         self.serverURL = serverURL
@@ -42,7 +41,6 @@ struct MediaLibraryConfig: Codable, Identifiable {
         self.password = password
         self.apiKey = apiKey
         self.userId = userId
-        self.isMediaLibrary = isMediaLibrary
     }
     
     /// 创建对应类型的客户端

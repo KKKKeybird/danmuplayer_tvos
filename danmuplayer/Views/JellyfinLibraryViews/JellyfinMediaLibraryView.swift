@@ -11,7 +11,7 @@ struct JellyfinMediaLibraryView: View {
     @State private var sortOption: SortOption = .recentlyWatched
     @State private var showingSortMenu = false
     
-    enum SortOption: String, CaseIterable {
+    enum SortOption: String, CaseIterable, Hashable {
         case recentlyWatched = "最近观看"
         case dateAdded = "添加时间"
         case name = "名称"
@@ -87,24 +87,27 @@ struct JellyfinMediaLibraryView: View {
         viewModel.mediaItems.sorted { item1, item2 in
             switch sortOption {
             case .recentlyWatched:
-                // 按最近观看时间排序，优先显示有播放记录的项目
-                let date1 = item1.userData?.lastPlayedDate
-                let date2 = item2.userData?.lastPlayedDate
+                // 按播放进度排序，优先显示有播放记录的项目
+                let progress1 = item1.userData?.playbackPositionTicks ?? 0
+                let progress2 = item2.userData?.playbackPositionTicks ?? 0
+                let playCount1 = item1.userData?.playCount ?? 0
+                let playCount2 = item2.userData?.playCount ?? 0
                 
-                switch (date1, date2) {
-                case (let d1?, let d2?):
-                    return d1 > d2
-                case (nil, _?):
-                    return false
-                case (_?, nil):
+                // 优先显示有播放进度或播放次数的项目
+                if (progress1 > 0 || playCount1 > 0) && (progress2 == 0 && playCount2 == 0) {
                     return true
-                case (nil, nil):
-                    // 如果都没有观看记录，按添加时间排序
-                    return (item1.dateCreated ?? Date.distantPast) > (item2.dateCreated ?? Date.distantPast)
+                } else if (progress1 == 0 && playCount1 == 0) && (progress2 > 0 || playCount2 > 0) {
+                    return false
+                } else {
+                    // 都有播放记录或都没有，按进度排序
+                    return progress1 > progress2
                 }
                 
             case .dateAdded:
-                return (item1.dateCreated ?? Date.distantPast) > (item2.dateCreated ?? Date.distantPast)
+                // 将字符串日期转换为Date进行比较
+                let date1 = parseDateString(item1.dateCreated) ?? Date.distantPast
+                let date2 = parseDateString(item2.dateCreated) ?? Date.distantPast
+                return date1 > date2
                 
             case .name:
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
@@ -156,9 +159,9 @@ struct JellyfinMediaLibraryView: View {
                 }
             }
             
-            // 排序选择popover
-            .popover(isPresented: $showingSortMenu, arrowEdge: .top) {
-                JellyfinSortSelectionPopover(
+            // 排序选择覆盖层
+            .smallMenuOverlay(isPresented: $showingSortMenu, title: "排序选择") {
+                JellyfinSortSelectionPopoverTV(
                     isPresented: $showingSortMenu,
                     selectedOption: $sortOption
                 )
@@ -174,5 +177,24 @@ struct JellyfinMediaLibraryView: View {
         // 根据项目API设计：所有播放逻辑都在JellyfinMediaDetailView中处理
         // 这里只负责显示详情页
         showingMediaDetail = true
+    }
+    
+    // MARK: - 辅助方法
+    
+    /// 解析Jellyfin日期字符串为Date对象
+    private func parseDateString(_ dateString: String?) -> Date? {
+        guard let dateString = dateString else { return nil }
+        
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        // 尝试完整格式解析
+        if let date = formatter.date(from: dateString) {
+            return date
+        }
+        
+        // 尝试不带毫秒的格式
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: dateString)
     }
 }

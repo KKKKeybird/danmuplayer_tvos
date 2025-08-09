@@ -16,7 +16,7 @@ struct JellyfinMediaDetailView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
                     // 标题区域
                     headerSection
@@ -33,13 +33,6 @@ struct JellyfinMediaDetailView: View {
                 .padding(.vertical, 20)
             }
             .navigationTitle(item.name)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                }
-            }
             .onAppear {
                 // 统一加载剧集结构（电影被当作只有一季一集的剧集）
                 loadEpisodesForUnifiedStructure()
@@ -53,11 +46,10 @@ struct JellyfinMediaDetailView: View {
                     viewModel: viewModel,
                     onDismiss: {
                         showingVideoPlayer = false
-                        selectedItem = nil
+                        self.selectedItem = nil
                     }
                 )
             }
-        }
         }
     }
     
@@ -214,8 +206,7 @@ struct JellyfinMediaDetailView: View {
         errorMessage = nil
         
         // 预处理媒体（包括获取字幕）
-        viewModel.prepareMediaForPlayback(item: mediaItem) { [weak self] playbackURL, subtitleURLs in
-            guard let self = self else { return }
+        viewModel.prepareMediaForPlayback(item: mediaItem) { playbackURL, subtitleURLs in
             DispatchQueue.main.async {
                 self.isLoading = false
                 // 设置要播放的项目

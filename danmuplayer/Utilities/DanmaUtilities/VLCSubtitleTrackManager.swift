@@ -128,17 +128,6 @@ class VLCSubtitleTrackManager {
         danmakuTrackIndex = nil
     }
     
-    /// 从缓存的弹幕数据添加字幕轨道（便捷方法）
-    func addDanmakuTrackFromCache(episodeId: Int, format: SubtitleFormat = .ass, episodeNumber: Int? = nil) -> Bool {
-        // 先尝试获取缓存的弹幕数据
-        if let cachedData = DanDanPlayCache.shared.getCachedDanmaku(for: episodeId) {
-            return addDanmakuTrack(from: cachedData, episodeId: episodeId, format: format, episodeNumber: episodeNumber)
-        } else {
-            print("未找到剧集 \(episodeId) 的缓存弹幕数据")
-            return false
-        }
-    }
-    
     /// 切换弹幕显示状态
     func toggleDanmaku(_ enabled: Bool, danmakuData: Data? = nil, episodeId: Int? = nil, episodeNumber: Int? = nil) {
         if enabled {

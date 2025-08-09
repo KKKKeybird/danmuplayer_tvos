@@ -319,7 +319,11 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
     ///   - item: 媒体项
     ///   - completion: 完成回调，返回播放URL和所有字幕URL数组
     func prepareMediaForPlayback(item: JellyfinMediaItem, completion: @escaping (URL, [URL]) -> Void) {
-        let playbackURL = client.getStreamingUrl(for: item.id)
+        guard let playbackURL = client.getPlaybackUrl(itemId: item.id) else {
+            DispatchQueue.main.async { completion(URL(string: "")!, []) }
+            return
+        }
+        
         // 获取所有字幕轨道
         client.getSubtitleTracks(for: item.id) { [weak self] result in
             guard let self = self else {

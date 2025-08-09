@@ -47,15 +47,16 @@ struct FileListView: View {
                             }
                         } else {
                             Button(action: {
-                                if isVideoFile(item.name) {
-                                    // 直接设置选中视频并弹出播放器，由WebDAVVideoPlayerWrapper负责准备和展示
+                                if WebDAVVideoPlayerWrapper.isVideoFile(item.name) {
+                                    print("WebDAV: 点击播放视频文件: \(item.name)")
                                     selectedVideoItem = item
                                     showingVideoPlayer = true
+                                    print("WebDAV: 设置播放状态 - selectedVideoItem: \(String(describing: selectedVideoItem?.name)), showingVideoPlayer: \(showingVideoPlayer)")
                                 }
                             }) {
                                 HStack {
-                                    Image(systemName: getFileIcon(for: item.name))
-                                        .foregroundStyle(getFileColor(for: item.name))
+                                    Image(systemName: WebDAVVideoPlayerWrapper.getFileIcon(for: item.name))
+                                        .foregroundStyle(WebDAVVideoPlayerWrapper.getFileColor(for: item.name))
                                     VStack(alignment: .leading) {
                                         Text(item.name)
                                             .font(.headline)
@@ -74,7 +75,7 @@ struct FileListView: View {
                                         }
                                     }
                                     Spacer()
-                                    if isVideoFile(item.name) {
+                                    if WebDAVVideoPlayerWrapper.isVideoFile(item.name) {
                                         Image(systemName: "play.circle.fill")
                                             .foregroundStyle(.blue)
                                             .font(.title2)
@@ -99,8 +100,8 @@ struct FileListView: View {
                 }
             }
             
-            // 排序选择popover
-            .popover(isPresented: $showingSortMenu, arrowEdge: .top) {
+            // 排序选择覆盖层
+            .smallMenuOverlay(isPresented: $showingSortMenu, title: "排序选择") {
                 WebDAVSortSelectionPopover(
                     isPresented: $showingSortMenu,
                     selectedOption: $sortOption,
@@ -117,23 +118,15 @@ struct FileListView: View {
         .refreshable {
             viewModel.loadDirectory()
         }
-        .sheet(isPresented: $showingVideoPlayer) {
+        .fullScreenCover(isPresented: $showingVideoPlayer) {
             if let videoItem = selectedVideoItem {
                 WebDAVVideoPlayerWrapper(
                     videoItem: videoItem,
                     viewModel: viewModel
                 )
+                .ignoresSafeArea()
             }
         }
-        .onChange(of: viewModel.showingVideoPlayer) { oldValue, newValue in
-            if newValue {
-                selectedVideoItem = viewModel.selectedVideoItem
-                showingVideoPlayer = true
-            }
-        }
-        .onChange(of: viewModel.selectedVideoItem) { oldValue, newValue in
-            if let newValue = newValue {
-                selectedVideoItem = newValue
-            }
+        // 移除对viewModel.showingVideoPlayer和selectedVideoItem的依赖
     }
 }

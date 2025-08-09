@@ -265,7 +265,7 @@ struct MediaLibraryConfigView: View {
                 client.authenticate { result in
                     switch result {
                     case .success(let user):
-                        continuation.resume(returning: (true, user.name, nil))
+                        continuation.resume(returning: (true, user.name, nil as Error?))
                     case .failure(let error):
                         continuation.resume(returning: (false, "", error))
                     }
@@ -362,8 +362,9 @@ struct JellyfinLibrarySelectionSheet: View {
                         
                         Spacer()
                         
-                        Button(localSelectedIds.count == availableLibraries.count ? "取消全选" : "全选") {
-                            if localSelectedIds.count == availableLibraries.count {
+                        let isAllSelected = localSelectedIds.count == availableLibraries.count
+                        Button(isAllSelected ? "取消全选" : "全选") {
+                            if isAllSelected {
                                 localSelectedIds.removeAll()
                             } else {
                                 localSelectedIds = Set(availableLibraries.map { $0.id })
@@ -380,14 +381,32 @@ struct JellyfinLibrarySelectionSheet: View {
                 // 媒体库列表
                 List {
                     ForEach(availableLibraries, id: \.id) { library in
-                        LibrarySelectionRow(
-                            library: library,
-                            isSelected: localSelectedIds.contains(library.id)
-                        ) { isSelected in
-                            if isSelected {
-                                localSelectedIds.insert(library.id)
-                            } else {
+                        HStack(spacing: 12) {
+                            let isSelected = localSelectedIds.contains(library.id)
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(isSelected ? .accentColor : .secondary)
+                                .font(.title3)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(library.name)
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                
+                                if let type = library.collectionType {
+                                    Text(type.capitalized)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if localSelectedIds.contains(library.id) {
                                 localSelectedIds.remove(library.id)
+                            } else {
+                                localSelectedIds.insert(library.id)
                             }
                         }
                     }
@@ -395,7 +414,6 @@ struct JellyfinLibrarySelectionSheet: View {
                 .listStyle(PlainListStyle())
             }
             .navigationTitle("媒体库选择")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") {

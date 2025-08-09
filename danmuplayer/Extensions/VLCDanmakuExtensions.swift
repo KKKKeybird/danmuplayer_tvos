@@ -7,43 +7,17 @@ import SwiftUI
 extension VLCMediaPlayer {
     // MARK: - 加载弹幕作为额外字幕轨道（不影响原始字幕）
     /// - Parameters:
-    ///   - danmakuData: 弹幕XML或JSON数据
+    ///   - danmakuData: ASS格式弹幕数据
     ///   - format: 字幕格式
     func loadDanmakuAsSubtitle(_ danmakuData: Data, format: SubtitleFormat = .ass) {
-        // 直接解析为统一的弹幕参数格式
-        guard let commentResult = try? JSONDecoder().decode(DanDanPlayCommentResult.self, from: danmakuData) else {
-            print("无法解析弹幕JSON数据")
-            return
-        }
-        
-        // 处理可能为null的comments数组
-        let comments = commentResult.comments ?? []
-        let danmakuParams = comments.compactMap { $0.parsedParams }
-        
-        guard !danmakuParams.isEmpty else {
-            print("没有解析到弹幕数据")
-            return
-        }
-        
         // 创建临时字幕文件
         let tempDir = FileManager.default.temporaryDirectory
         let subtitleFileName = "danmaku_\(UUID().uuidString).\(format.fileExtension)"
         let subtitleURL = tempDir.appendingPathComponent(subtitleFileName)
         
         do {
-            // 将弹幕参数转换为DanmakuComment格式（为了兼容字幕转换器）
-            let danmakuComments = danmakuParams.map { params in
-                DanmakuComment(
-                    time: params.time,
-                    mode: params.mode,
-                    fontSize: 25,
-                    colorValue: Int(params.color),
-                    timestamp: params.time,
-                    content: params.content
-                )
-            }
-            
-            try DanmakuToSubtitleConverter.saveDanmakuAsSubtitle(danmakuComments, format: format, to: subtitleURL)
+            // 直接写入ASS数据到临时文件
+            try danmakuData.write(to: subtitleURL)
             
             // 使用addPlaybackSlave添加额外的字幕轨道，不会替换原有字幕
             // 使用.subtitle类型确保作为字幕轨道添加
@@ -51,7 +25,7 @@ extension VLCMediaPlayer {
             let result = addPlaybackSlave(subtitleURL, type: .subtitle, enforce: false)
             
             if result == 0 {
-                print("成功加载 \(comments.count) 条弹幕作为额外字幕轨道")
+                print("成功加载弹幕作为额外字幕轨道")
                 
                 // 获取新增的字幕轨道索引并启用弹幕字幕
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

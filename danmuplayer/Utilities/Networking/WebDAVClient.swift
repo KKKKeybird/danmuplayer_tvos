@@ -150,7 +150,9 @@ class WebDAVClient {
                 // 解析WebDAV XML响应
                 do {
                     let parser = WebDAVParser()
-                    let items = try parser.parseDirectoryResponse(data)
+                    // 取 url.path 作为 currentPath 传递给 parser
+                    let currentPath = url.path
+                    let items = try parser.parseDirectoryResponse(data, currentPath: currentPath)
                     print("WebDAV: PROPFIND XML parsing succeeded, found \(items.count) items")
                     completion(.success(items))
                 } catch {

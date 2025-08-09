@@ -1,13 +1,12 @@
-/// 异步图片加载器，支持缓存
 import SwiftUI
 import UIKit
 
-/// 异步图片加载器，集成Jellyfin缓存
+/// 异步图片加载器，集成 Jellyfin 缓存
 @MainActor
-class AsyncImageLoader: ObservableObject {
-    @Published var image: UIImage?
-    @Published var isLoading: Bool = false
-    @Published var error: Error?
+final class AsyncImageLoader: ObservableObject {
+    @Published private(set) var image: UIImage?
+    @Published private(set) var isLoading = false
+    @Published private(set) var error: Error?
     
     private(set) var url: URL
     private var task: URLSessionDataTask?
@@ -16,71 +15,64 @@ class AsyncImageLoader: ObservableObject {
         self.url = url
     }
     
+    /// 更新图片地址并重新加载
     func updateURL(_ newURL: URL) {
         guard newURL != url else { return }
-        
-        // 取消当前任务
         cancel()
-        
-        // 清除当前状态
         image = nil
         error = nil
-        
-        // 更新 URL
         url = newURL
-        
-        // 开始加载新图片
         load()
     }
     
     func load() {
-        // 先检查缓存
+        guard !isLoading else { return }
+        
+        // 检查缓存
         if let cachedImage = JellyfinCache.shared.getCachedImage(for: url) {
-            self.image = cachedImage
+            image = cachedImage
             return
         }
         
-        // 如果没有缓存，从网络加载
         isLoading = true
         error = nil
         
-        task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            Task { @MainActor in
+        task = URLSession.shared.dataTask(with: url) { [weak self] data, _, err in
+            Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 
                 self.isLoading = false
                 
-                if let error = error {
-                    self.error = error
+                if let err {
+                    self.error = err
                     return
                 }
                 
-                guard let data = data, let loadedImage = UIImage(data: data) else {
-                    self.error = NSError(domain: "AsyncImageLoader", code: -1, userInfo: [NSLocalizedDescriptionKey: "无法解析图片数据"])
+                guard let data,
+                    let loadedImage = UIImage(data: data) else {
+                    self.error = NSError(
+                        domain: "AsyncImageLoader",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "无法解析图片数据"]
+                    )
                     return
                 }
                 
-                // 缓存图片
                 JellyfinCache.shared.cacheImage(loadedImage, for: self.url)
-                
                 self.image = loadedImage
             }
         }
-        
         task?.resume()
     }
+
     
+    /// 取消下载任务
     func cancel() {
         task?.cancel()
         task = nil
         isLoading = false
     }
     
-    deinit {
-        Task { @MainActor in
-            self.cancel()
-        }
-    }
 }
 
 /// 带缓存的异步图片视图
@@ -93,13 +85,13 @@ struct CachedAsyncImage<Content: View>: View {
     init(url: URL?, @ViewBuilder content: @escaping (AsyncImagePhase) -> Content) {
         self.url = url
         self.content = content
-        self._loader = StateObject(wrappedValue: AsyncImageLoader(url: url ?? URL(string: "about:blank")!))
+        _loader = StateObject(wrappedValue: AsyncImageLoader(url: url ?? URL(string: "about:blank")!))
     }
     
     var body: some View {
         content(currentPhase)
             .onAppear {
-                if let url = url {
+                if let url {
                     if loader.url != url {
                         loader.updateURL(url)
                     } else {
@@ -108,7 +100,11 @@ struct CachedAsyncImage<Content: View>: View {
                 }
             }
             .onDisappear {
-                loader.cancel()
+                Task {
+                    await MainActor.run {
+                        loader.cancel()
+                    }
+                }
             }
     }
     
@@ -132,16 +128,12 @@ enum AsyncImagePhase {
     case failure(Error)
     
     var image: Image? {
-        if case .success(let image) = self {
-            return image
-        }
-        return nil
+        if case .success(let image) = self { image }
+        else { nil }
     }
     
     var error: Error? {
-        if case .failure(let error) = self {
-            return error
-        }
-        return nil
+        if case .failure(let err) = self { err }
+        else { nil }
     }
 }

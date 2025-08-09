@@ -125,7 +125,7 @@ extension VLCPlayerContainer {
 // MARK: - 辅助视图
 
 @available(tvOS 17.0, *)
-struct LoadingView: View {
+private struct LoadingView: View {
     let message: String
     
     var body: some View {
@@ -145,7 +145,7 @@ struct LoadingView: View {
 }
 
 @available(tvOS 17.0, *)
-struct ErrorView: View {
+private struct ErrorView: View {
     let message: String
     let onRetry: () -> Void
     let onDismiss: () -> Void
@@ -195,7 +195,7 @@ struct VLCPlayerContainer_Previews: PreviewProvider {
         VLCPlayerContainer(
             videoURL: URL(string: "https://example.com/video.mp4")!,
             originalFileName: "示例视频.mp4",
-            subtitleURL: nil,
+            subtitleURLs: [],
             onDismiss: {}
         )
     }

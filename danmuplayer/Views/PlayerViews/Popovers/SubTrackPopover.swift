@@ -93,7 +93,7 @@ struct SubTrackPopover: View {
         .frame(width: 420)
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.systemBackground).opacity(0.98))
+                .fill(Color.black.opacity(0.98))
                 .shadow(radius: 16)
         )
         .onAppear {
@@ -267,19 +267,3 @@ struct SubtitleFileInfo {
 }
 
 // MARK: - 预览
-
-#if DEBUG
-@available(tvOS 17.0, *)
-struct SubTrackPopover_Previews: PreviewProvider {
-    static var previews: some View {
-        SubTrackPopover(
-            isPresented: .constant(true),
-            vlcPlayer: nil,
-            externalSubtitles: [
-                SubtitleFileInfo(name: "中文字幕.srt", url: nil, language: "中文"),
-                SubtitleFileInfo(name: "英文字幕.srt", url: nil, language: "English")
-            ]
-        )
-    }
-}
-#endif

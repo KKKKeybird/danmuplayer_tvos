@@ -1,82 +1,113 @@
-/// WebDAV文件排序选择组件
 import SwiftUI
 
-/// WebDAV文件排序选择覆盖层
-@available(tvOS 17.0, *)
+/// WebDAV 文件排序选择覆盖层（tvOS 样式）
+@available(tvOS 15.0, *)
 struct WebDAVSortSelectionPopover: View {
     @Binding var isPresented: Bool
     @Binding var selectedOption: FileBrowserViewModel.SortOption
     let onSelectionChanged: (FileBrowserViewModel.SortOption) -> Void
     
+    @FocusState private var focusedOption: FileBrowserViewModel.SortOption?
+    @Namespace private var focusNamespace
+    
+    private let sortOptions: [FileBrowserViewModel.SortOption] = [.name, .date, .size]
+    
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("排序方式")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
+        ZStack {
+            backgroundOverlay
+            mainContent
+        }
+        .animation(.easeInOut(duration: 0.25), value: isPresented)
+        .onAppear {
+            focusedOption = selectedOption
+        }
+    }
+    
+    private var backgroundOverlay: some View {
+        Color.black.opacity(0.4)
+            .ignoresSafeArea()
+            .onTapGesture {
+                isPresented = false
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+    }
+    
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            headerView
             Divider()
-            VStack(spacing: 0) {
-                ForEach([FileBrowserViewModel.SortOption.name, .date, .size], id: \ .self) { option in
-                    Button {
-                        selectedOption = option
-                        onSelectionChanged(option)
-                        isPresented = false
-                    } label: {
-                        HStack(spacing: 16) {
-                            Image(systemName: option.systemImage)
-                                .font(.title3)
-                                .frame(width: 30)
-                                .foregroundStyle(selectedOption == option ? .accentColor : .primary)
-                            Text(option.displayName)
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            if selectedOption == option {
-                                Image(systemName: "checkmark")
-                                    .font(.body)
-                                    .foregroundStyle(.accentColor)
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                        .background(selectedOption == option ? Color.accentColor.opacity(0.1) : Color.clear)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    if option != .size {
-                        Divider()
-                            .padding(.leading, 66)
-                    }
+            optionsList
+        }
+        .frame(width: 500)
+        .background(popoverBackground)
+        .focusScope(focusNamespace)
+    }
+    
+    private var headerView: some View {
+        HStack {
+            Text("排序方式")
+                .font(.title3)
+                .fontWeight(.semibold)
+            Spacer()
+            Button {
+                isPresented = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+    }
+    
+    private var popoverBackground: some View {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(Color.black.opacity(0.95))
+            .shadow(radius: 25)
+    }
+    
+    private var optionsList: some View {
+        VStack(spacing: 0) {
+            ForEach(sortOptions, id: \.self) { option in
+                optionRow(for: option)
+                if option != sortOptions.last {
+                    Divider()
+                        .padding(.leading, 66)
                 }
             }
         }
-        .frame(width: 400)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.systemBackground).opacity(0.98))
-                .shadow(radius: 20)
-        )
-        .animation(.easeInOut(duration: 0.3), value: isPresented)
     }
-}
-
-#Preview {
-    @State var isPresented = true
-    @State var selectedOption = FileBrowserViewModel.SortOption.name
     
-    return WebDAVSortSelectionPopover(
-        isPresented: $isPresented,
-        selectedOption: $selectedOption,
-        onSelectionChanged: { _ in }
-    )
+    private func optionRow(for option: FileBrowserViewModel.SortOption) -> some View {
+        Button {
+            selectedOption = option
+            onSelectionChanged(option)
+            isPresented = false
+        } label: {
+            optionContent(for: option)
+        }
+        .buttonStyle(.plain)
+        .focusable(true)
+        .focused($focusedOption, equals: option)
+    }
+    
+    private func optionContent(for option: FileBrowserViewModel.SortOption) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: option.systemImage)
+                .font(.title3)
+                .frame(width: 30)
+            Text(option.displayName)
+                .font(.title3)
+            Spacer()
+            if selectedOption == option {
+                Image(systemName: "checkmark")
+                    .font(.title3)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+        .background(focusedOption == option ? Color.accentColor.opacity(0.3) : Color.clear)
+    }
 }

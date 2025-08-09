@@ -277,14 +277,18 @@ class DanDanPlayAPI {
                     let commentResult = try JSONDecoder().decode(DanDanPlayCommentResult.self, from: data)
                     let comments = commentResult.comments ?? []
                     let danmakuParams = comments.compactMap { $0.parsedParams }
-                    
+                    let danmakuComments = danmakuParams.map { params in
+                        DanmakuComment(
+                            time: params.time,
+                            mode: params.mode,
+                            fontSize: 25, // 默认字体大小
+                            colorValue: Int(params.color),
+                            timestamp: params.time,
+                            content: params.content
+                        )
+                    }
                     // 转换为ASS格式
-                    let converter = DanmakuToSubtitleConverter()
-                    let assContent = converter.convertToASS(
-                        danmakuParams: danmakuParams,
-                        episodeId: episode.episodeId,
-                        episodeTitle: episode.displayTitle
-                    )
+                    let assContent = DanmakuToSubtitleConverter.convertToASS(danmakuComments, videoWidth: 1920, videoHeight: 1080)
                     
                     // 缓存ASS内容
                     DanDanPlayCache.shared.cacheASSSubtitle(assContent, for: episode.episodeId)
@@ -302,11 +306,6 @@ class DanDanPlayAPI {
 
     /// 加载对应剧集的弹幕数据
     private func loadDanmaku(for episode: DanDanPlayEpisode, completion: @escaping (Result<Data, Error>) -> Void) {
-        // 先检查缓存
-        if let cachedData = DanDanPlayCache.shared.getCachedDanmaku(for: episode.episodeId) {
-            completion(.success(cachedData))
-            return
-        }
         
         guard let url = URL(string: "\(baseURL)/api/v2/comment/\(episode.episodeId)?from=0&withRelated=true&chConvert=1") else {
             completion(.failure(NetworkError.invalidURL))
@@ -360,9 +359,6 @@ class DanDanPlayAPI {
                             let commentResult = try JSONDecoder().decode(DanDanPlayCommentResult.self, from: redirectData)
                             print("通过重定向成功获取弹幕数据，共 \(commentResult.count) 条弹幕")
                             
-                            // 缓存弹幕数据
-                            DanDanPlayCache.shared.cacheDanmaku(redirectData, for: episode.episodeId)
-                            
                             completion(.success(redirectData))
                         } catch {
                             print("重定向后弹幕数据解析失败: \(error)")
@@ -390,9 +386,6 @@ class DanDanPlayAPI {
             do {
                 let commentResult = try JSONDecoder().decode(DanDanPlayCommentResult.self, from: data)
                 print("成功获取弹幕数据，共 \(commentResult.count) 条弹幕")
-                
-                // 缓存弹幕数据
-                DanDanPlayCache.shared.cacheDanmaku(data, for: episode.episodeId)
                 
                 completion(.success(data))
             } catch {

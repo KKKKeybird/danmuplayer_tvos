@@ -1,224 +1,54 @@
-/// 播放器信息覆盖层 - 进度条覆盖层，配有各种控制按钮
+/// 播放器信息覆盖层 - 使用VLCKit扩展实现
 import SwiftUI
 import VLCKitSPM
 import VLCUI
 
-/// 进度条覆盖层，包含视频音频轨选择按钮，字幕选择按钮，弹幕开关按钮，弹幕匹配按钮，弹幕设置按钮
-@available(tvOS 17.0, *)
-struct InformationOverlay: View {
-    @Binding var isVisible: Bool
-    @Binding var currentTime: Double
-    @Binding var duration: Double
-    @Binding var isPlaying: Bool
-    @Binding var currentOverlayType: OverlayType
-    
-    let vlcPlayer: VLCMediaPlayer?
-    let onSeek: (Double) -> Void
-    let onPlayPause: () -> Void
-    let onShowAudioTracks: () -> Void
-    let onShowSubtitles: () -> Void
-    let onToggleDanmaku: () -> Void
-    let onShowDanmakuMatch: () -> Void
-    let onShowDanmakuSettings: () -> Void
-    let onDismiss: () -> Void
-    
-    enum OverlayType {
-        case main
-        case audioTrack
-        case subtitle
-        case danmakuMatch
-        case danmakuSettings
+// MARK: - VLCMediaPlayer 扩展
+
+extension VLCMediaPlayer {
+    /// 获取格式化的当前时间
+    var formattedCurrentTime: String {
+        let time = self.time.intValue / 1000 // 转换为秒
+        return formatTime(Double(time))
     }
     
-    @State private var isScrubbing: Bool = false
-    @State private var scrubbingProgress: Double = 0
-    @State private var isSliderFocused: Bool = false
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // 顶部控制栏
-            topControlBar
-            
-            Spacer()
-            
-            // 底部进度条和控制栏
-            bottomControlBar
-        }
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black.opacity(0.7),
-                    Color.clear,
-                    Color.black.opacity(0.7)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
-        .opacity(isVisible ? 1 : 0)
-        .animation(.easeInOut(duration: 0.3), value: isVisible)
+    /// 获取格式化的总时长
+    var formattedDuration: String {
+        guard let media = self.media else { return "0:00" }
+        let duration = media.length.intValue / 1000 // 转换为秒
+        return formatTime(Double(duration))
     }
     
-    // MARK: - 顶部控制栏
-    
-    private var topControlBar: some View {
-        HStack {
-            Button(action: onDismiss) {
-                HStack {
-                    Image(systemName: "chevron.left")
-                    Text("返回")
-                }
-                .foregroundColor(.white)
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            Spacer()
-            
-            // 弹幕控制按钮组
-            HStack(spacing: 20) {
-                Button(action: onToggleDanmaku) {
-                    VStack(spacing: 2) {
-                        Image(systemName: "text.bubble")
-                        Text("弹幕")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(.white)
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Button(action: onShowDanmakuMatch) {
-                    VStack(spacing: 2) {
-                        Image(systemName: "magnifyingglass")
-                        Text("匹配")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(.white)
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Button(action: onShowDanmakuSettings) {
-                    VStack(spacing: 2) {
-                        Image(systemName: "slider.horizontal.3")
-                        Text("设置")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(.white)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-        }
-        .padding(.horizontal, 40)
-        .padding(.top, 40)
+    /// 获取播放进度百分比
+    var playbackProgress: Float {
+        guard let media = self.media else { return 0.0 }
+        let currentTime = self.time.intValue
+        let totalTime = media.length.intValue
+        return totalTime > 0 ? Float(currentTime) / Float(totalTime) : 0.0
     }
     
-    // MARK: - 底部控制栏
-    
-    private var bottomControlBar: some View {
-        VStack(spacing: 16) {
-            // 播放控制
-            playbackControls
-            // 进度条
-            progressSlider
-        }
-        .padding(.horizontal, 40)
-        .padding(.bottom, 40)
+    /// 跳转到指定进度百分比
+    func seekToProgress(_ progress: Float) {
+        guard let media = self.media else { return }
+        let targetTime = Int32(Float(media.length.intValue) * progress)
+        self.time = VLCTime(number: NSNumber(value: targetTime))
     }
     
-    // MARK: - 进度条
-    
-    private var progressSlider: some View {
-        VStack(spacing: 8) {
-            // 时间标签
-            HStack {
-                Text(formatTime(isScrubbing ? scrubbingProgress : currentTime))
-                    .font(.caption)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                Text(formatTime(duration))
-                    .font(.caption)
-                    .foregroundColor(.white)
-            }
-            
-            // 进度滑块
-            ProgressSliderView(
-                progress: $currentTime,
-                duration: duration,
-                isSliderFocused: $isSliderFocused,
-                onSeekStarted: {
-                    isScrubbing = true
-                },
-                onSeekChanged: { progress in
-                    scrubbingProgress = progress
-                },
-                onSeekEnded: { finalProgress in
-                    isScrubbing = false
-                    onSeek(finalProgress)
-                }
-            )
-        }
+    /// 快进指定秒数
+    func fastForward(_ seconds: Int) {
+        let currentTime = self.time.intValue
+        let newTime = currentTime + Int32(seconds * 1000)
+        self.time = VLCTime(number: NSNumber(value: newTime))
     }
     
-    // MARK: - 播放控制
-    
-    private var playbackControls: some View {
-        HStack(spacing: 40) {
-            Spacer()
-            // 音频轨道选择
-            Button(action: onShowAudioTracks) {
-                VStack(spacing: 4) {
-                    Image(systemName: "speaker.wave.2")
-                    Text("音轨")
-                        .font(.caption2)
-                }
-                .foregroundColor(.white)
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            // 后退15秒
-            Button(action: {
-                onSeek(max(0, currentTime - 15))
-            }) {
-                Image(systemName: "gobackward.15")
-                    .font(.title2)
-                    .foregroundColor(.white)
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            // 播放/暂停
-            Button(action: onPlayPause) {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.largeTitle)
-                    .foregroundColor(.white)
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            // 快进15秒
-            Button(action: {
-                onSeek(min(duration, currentTime + 15))
-            }) {
-                Image(systemName: "goforward.15")
-                    .font(.title2)
-                    .foregroundColor(.white)
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            // 字幕选择
-            Button(action: onShowSubtitles) {
-                VStack(spacing: 4) {
-                    Image(systemName: "captions.bubble")
-                    Text("字幕")
-                        .font(.caption2)
-                }
-                .foregroundColor(.white)
-            }
-            .buttonStyle(PlainButtonStyle())
-        }
+    /// 快退指定秒数
+    func rewind(_ seconds: Int) {
+        let currentTime = self.time.intValue
+        let newTime = max(0, currentTime - Int32(seconds * 1000))
+        self.time = VLCTime(number: NSNumber(value: newTime))
     }
     
-    // MARK: - 辅助方法
-    
+    /// 格式化时间的私有方法
     private func formatTime(_ time: Double) -> String {
         let hours = Int(time) / 3600
         let minutes = (Int(time) % 3600) / 60
@@ -232,17 +62,282 @@ struct InformationOverlay: View {
     }
 }
 
-// MARK: - 进度滑块组件
+// MARK: - VLC 播放器控制协议
+
+protocol VLCPlayerControlDelegate: AnyObject {
+    func playerDidRequestAudioTrackSelection()
+    func playerDidRequestSubtitleSelection()
+    func playerDidRequestDanmakuToggle()
+    func playerDidRequestDanmakuMatch()
+    func playerDidRequestDanmakuSettings()
+    func playerDidRequestDismiss()
+}
+
+// MARK: - VLC 集成的信息覆盖层
 
 @available(tvOS 17.0, *)
-struct ProgressSliderView: View {
-    @Binding var progress: Double
-    let duration: Double
-    @Binding var isSliderFocused: Bool
+struct VLCIntegratedOverlay: View {
+    @ObservedObject private var playerState: VLCPlayerState
+    weak var controlDelegate: VLCPlayerControlDelegate?
     
-    let onSeekStarted: () -> Void
-    let onSeekChanged: (Double) -> Void
-    let onSeekEnded: (Double) -> Void
+    @State private var isVisible: Bool = true
+    @State private var hideTimer: Timer?
+    
+    init(player: VLCMediaPlayer, controlDelegate: VLCPlayerControlDelegate? = nil) {
+        self.playerState = VLCPlayerState(player: player)
+        self.controlDelegate = controlDelegate
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 顶部控制栏
+            topControlBar
+            
+            Spacer()
+            
+            // 底部控制栏
+            bottomControlBar
+        }
+        .background(overlayGradient)
+        .opacity(isVisible ? 1 : 0)
+        .animation(.easeInOut(duration: 0.3), value: isVisible)
+        .onAppear {
+            startHideTimer()
+        }
+        .onReceive(playerState.$isPlaying) { isPlaying in
+            if isPlaying {
+                startHideTimer()
+            } else {
+                showOverlay()
+            }
+        }
+    }
+    
+    // MARK: - 子视图
+    
+    private var topControlBar: some View {
+        HStack {
+            Button(action: { controlDelegate?.playerDidRequestDismiss() }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.left")
+                    Text("返回")
+                }
+                .foregroundColor(.white)
+                .font(.body)
+            }
+            
+            Spacer()
+            
+            // 弹幕控制组
+            HStack(spacing: 24) {
+                overlayButton(
+                    icon: "text.bubble",
+                    title: "弹幕",
+                    action: { controlDelegate?.playerDidRequestDanmakuToggle() }
+                )
+                
+                overlayButton(
+                    icon: "magnifyingglass",
+                    title: "匹配",
+                    action: { controlDelegate?.playerDidRequestDanmakuMatch() }
+                )
+                
+                overlayButton(
+                    icon: "slider.horizontal.3",
+                    title: "设置",
+                    action: { controlDelegate?.playerDidRequestDanmakuSettings() }
+                )
+            }
+        }
+        .padding(.horizontal, 50)
+        .padding(.top, 50)
+    }
+    
+    private var bottomControlBar: some View {
+        VStack(spacing: 20) {
+            // 播放控制按钮
+            playbackControls
+            
+            // 进度条和时间
+            progressSection
+        }
+        .padding(.horizontal, 50)
+        .padding(.bottom, 50)
+    }
+    
+    private var playbackControls: some View {
+        HStack(spacing: 50) {
+            // 音频轨道
+            overlayButton(
+                icon: "speaker.wave.2",
+                title: "音轨",
+                action: { controlDelegate?.playerDidRequestAudioTrackSelection() }
+            )
+            
+            // 快退15秒
+            Button(action: { playerState.player.rewind(15) }) {
+                Image(systemName: "gobackward.15")
+                    .font(.title2)
+                    .foregroundColor(.white)
+            }
+            
+            // 播放/暂停
+            Button(action: { playerState.togglePlayback() }) {
+                Image(systemName: playerState.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.largeTitle)
+                    .foregroundColor(.white)
+            }
+            
+            // 快进15秒
+            Button(action: { playerState.player.fastForward(15) }) {
+                Image(systemName: "goforward.15")
+                    .font(.title2)
+                    .foregroundColor(.white)
+            }
+            
+            // 字幕选择
+            overlayButton(
+                icon: "captions.bubble",
+                title: "字幕",
+                action: { controlDelegate?.playerDidRequestSubtitleSelection() }
+            )
+        }
+    }
+    
+    private var progressSection: some View {
+        VStack(spacing: 12) {
+            // 时间显示
+            HStack {
+                Text(playerState.formattedCurrentTime)
+                    .foregroundColor(.white)
+                    .font(.caption)
+                
+                Spacer()
+                
+                Text(playerState.formattedDuration)
+                    .foregroundColor(.white)
+                    .font(.caption)
+            }
+            
+            // VLC 集成进度条
+            VLCProgressBar(playerState: playerState)
+        }
+    }
+    
+    private var overlayGradient: some View {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                Color.black.opacity(0.8),
+                Color.clear,
+                Color.black.opacity(0.8)
+            ]),
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+    
+    // MARK: - 辅助方法
+    
+    private func overlayButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.title3)
+                Text(title)
+                    .font(.caption2)
+            }
+            .foregroundColor(.white)
+        }
+    }
+    
+    private func showOverlay() {
+        hideTimer?.invalidate()
+        isVisible = true
+    }
+    
+    private func startHideTimer() {
+        hideTimer?.invalidate()
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isVisible = false
+            }
+        }
+    }
+}
+
+// MARK: - VLC 播放器状态管理
+
+@available(tvOS 17.0, *)
+class VLCPlayerState: ObservableObject {
+    let player: VLCMediaPlayer
+    private var timeObserver: Timer?
+    
+    @Published var isPlaying: Bool = false
+    @Published var currentTime: String = "0:00"
+    @Published var duration: String = "0:00"
+    @Published var progress: Float = 0.0
+    
+    var formattedCurrentTime: String {
+        return player.formattedCurrentTime
+    }
+    
+    var formattedDuration: String {
+        return player.formattedDuration
+    }
+    
+    init(player: VLCMediaPlayer) {
+        self.player = player
+        setupObservers()
+        startTimeObserver()
+    }
+    
+    deinit {
+        timeObserver?.invalidate()
+    }
+    
+    private func setupObservers() {
+        // 监听播放状态变化 - 使用字符串创建通知名称
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("VLCMediaPlayerStateChanged"),
+            object: player,
+            queue: .main
+        ) { [weak self] _ in
+            self?.updatePlaybackState()
+        }
+    }
+    
+    private func startTimeObserver() {
+        timeObserver = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.updateTimeInfo()
+        }
+    }
+    
+    private func updatePlaybackState() {
+        isPlaying = player.isPlaying
+    }
+    
+    private func updateTimeInfo() {
+        currentTime = player.formattedCurrentTime
+        duration = player.formattedDuration
+        progress = player.playbackProgress
+    }
+    
+    func togglePlayback() {
+        if player.isPlaying {
+            player.pause()
+        } else {
+            player.play()
+        }
+    }
+}
+
+// MARK: - VLC 进度条组件
+
+@available(tvOS 17.0, *)
+struct VLCProgressBar: View {
+    @ObservedObject var playerState: VLCPlayerState
+    @State private var isDragging: Bool = false
+    @State private var dragProgress: Float = 0
     
     var body: some View {
         GeometryReader { geometry in
@@ -255,38 +350,42 @@ struct ProgressSliderView: View {
                 // 进度轨道
                 Rectangle()
                     .fill(Color.white)
-                    .frame(width: CGFloat(progress / duration) * geometry.size.width, height: 4)
+                    .frame(
+                        width: CGFloat(isDragging ? dragProgress : playerState.progress) * geometry.size.width,
+                        height: 4
+                    )
                 
                 // 滑块
                 Circle()
                     .fill(Color.white)
-                    .frame(width: isSliderFocused ? 20 : 12, height: isSliderFocused ? 20 : 12)
-                    .offset(x: CGFloat(progress / duration) * geometry.size.width - (isSliderFocused ? 10 : 6))
+                    .frame(width: 16, height: 16)
+                    .offset(
+                        x: CGFloat(isDragging ? dragProgress : playerState.progress) * geometry.size.width - 8
+                    )
             }
         }
         .frame(height: 20)
         .focusable()
-            // 长按开始滑动，滑动时预览，点击确认跳转
-            .gesture(
-                LongPressGesture(minimumDuration: 0.2)
-                    .sequenced(before: DragGesture(minimumDistance: 0))
-                    .onChanged { value in
-                        switch value {
-                        case .first(true):
-                            onSeekStarted()
-                        case .second(true, let drag?):
-                            let width = drag.location.x
-                            let percent = max(0, min(1, width / max(1, drag.startLocation.x == drag.location.x ? 1 : drag.startLocation.x == 0 ? 1 : drag.startLocation.x)))
-                            let newProgress = percent * duration
-                            onSeekChanged(newProgress)
-                        default:
-                            break
-                        }
-                    }
-            )
-            .onTapGesture {
-                // 点击时跳转到当前预览进度
-                onSeekEnded(scrubbingProgress > 0 ? scrubbingProgress : progress)
-            }
+        .onTapGesture {
+            // tvOS 中用点击来显示/隐藏控制栏
+            // 实际的拖拽会通过焦点状态和遥控器处理
+        }
+    }
+}
+
+// MARK: - 向后兼容性
+
+/// 原有的 InformationOverlay 结构体的类型别名，用于保持向后兼容性
+@available(tvOS 17.0, *)
+typealias InformationOverlay = VLCIntegratedOverlay
+
+/// 原有的 OverlayType 枚举，用于保持向后兼容性
+extension VLCIntegratedOverlay {
+    enum OverlayType {
+        case main
+        case audioTrack
+        case subtitle
+        case danmakuMatch
+        case danmakuSettings
     }
 }

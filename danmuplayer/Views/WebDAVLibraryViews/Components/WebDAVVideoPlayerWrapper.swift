@@ -50,50 +50,47 @@ struct WebDAVVideoPlayerWrapper: View {
             }
         }
         .onAppear {
+            print("WebDAV: WebDAVVideoPlayerWrapper 出现，开始设置播放器")
+            print("WebDAV: 视频文件: \(videoItem.name)")
             setupPlayerContainer()
         }
     }
     
     private func setupPlayerContainer() {
-        // 获取流媒体URL和字幕文件
-        viewModel.getVideoStreamingURL(for: videoItem) { result in
+        print("WebDAV: 开始准备媒体播放")
+        viewModel.prepareMediaForPlayback(item: videoItem) { playbackURL, subtitleURLs in
+            print("WebDAV: 媒体准备完成 - URL: \(playbackURL)")
             DispatchQueue.main.async {
-                switch result {
-                case .success(let streamingURL):
-                    // 查找字幕文件
-                    let subtitleFiles = viewModel.findSubtitleFiles(for: videoItem)
-                    
-                    // 创建VLC播放器容器
-                    let container = VLCPlayerContainer.create(
-                        videoURL: streamingURL,
-                        originalFileName: videoItem.name,
-                        subtitleURL: subtitleFiles.first,
-                        onDismiss: {
-                            dismiss()
-                        }
-                    )
-                    
-                    self.playerContainer = container
+                if playbackURL.absoluteString.isEmpty {
+                    print("WebDAV: 错误 - 无法获取视频流")
+                    self.errorMessage = "无法获取视频流"
                     self.isLoading = false
-                    
-                case .failure(let error):
-                    self.errorMessage = "无法获取视频流: \(error.localizedDescription)"
-                    self.isLoading = false
+                    return
                 }
+                print("WebDAV: 创建 VLCPlayerContainer")
+                let container = VLCPlayerContainer.create(
+                    videoURL: playbackURL,
+                    originalFileName: videoItem.name,
+                    subtitleURLs: subtitleURLs.compactMap { $0 },
+                    onDismiss: {
+                        print("WebDAV: 播放器请求关闭")
+                        dismiss()
+                    }
+                )
+                self.playerContainer = container
+                self.isLoading = false
+                print("WebDAV: 播放器容器创建完成")
             }
         }
-    }    private func playVideo(item: WebDAVItem) {
-        selectedVideoItem = item
-        showingVideoPlayer = true
     }
     
-    private func isVideoFile(_ filename: String) -> Bool {
+    static func isVideoFile(_ filename: String) -> Bool {
         let videoExtensions = ["mp4", "mkv", "avi", "mov", "wmv", "flv", "m4v", "webm"]
         let ext = (filename as NSString).pathExtension.lowercased()
         return videoExtensions.contains(ext)
     }
     
-    private func getFileIcon(for filename: String) -> String {
+    static func getFileIcon(for filename: String) -> String {
         let ext = (filename as NSString).pathExtension.lowercased()
         switch ext {
         case "mp4", "mkv", "avi", "mov", "wmv", "flv", "m4v", "webm":
@@ -109,7 +106,7 @@ struct WebDAVVideoPlayerWrapper: View {
         }
     }
     
-    private func getFileColor(for filename: String) -> Color {
+    static func getFileColor(for filename: String) -> Color {
         let ext = (filename as NSString).pathExtension.lowercased()
         switch ext {
         case "mp4", "mkv", "avi", "mov", "wmv", "flv", "m4v", "webm":

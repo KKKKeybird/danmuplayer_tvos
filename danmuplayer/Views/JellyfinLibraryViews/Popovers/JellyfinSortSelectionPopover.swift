@@ -1,79 +1,100 @@
-/// Jellyfin媒体库排序选择组件
 import SwiftUI
 
-/// Jellyfin媒体库排序选择覆盖层
 @available(tvOS 17.0, *)
-struct JellyfinSortSelectionPopover: View {
+struct JellyfinSortSelectionPopoverTV: View {
     @Binding var isPresented: Bool
     @Binding var selectedOption: JellyfinMediaLibraryView.SortOption
-    
+    @FocusState private var focusedOption: JellyfinMediaLibraryView.SortOption?
+    @Namespace private var focusNamespace
+
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("排序方式")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
+        ZStack {
+            backgroundOverlay
+            mainContent
+        }
+        .scaleEffect(isPresented ? 1 : 0.8)
+        .opacity(isPresented ? 1 : 0)
+        .animation(.easeOut(duration: 0.3), value: isPresented)
+        .onAppear {
+            focusedOption = selectedOption
+        }
+    }
+    
+    private var backgroundOverlay: some View {
+        Color.black.opacity(0.4)
+            .ignoresSafeArea()
+            .onTapGesture {
+                isPresented = false
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+    }
+    
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            headerView
             Divider()
-            VStack(spacing: 0) {
-                ForEach(JellyfinMediaLibraryView.SortOption.allCases, id: \ .self) { option in
-                    Button {
-                        selectedOption = option
-                        isPresented = false
-                    } label: {
-                        HStack(spacing: 16) {
-                            Image(systemName: option.systemImage)
-                                .font(.title3)
-                                .frame(width: 30)
-                                .foregroundStyle(selectedOption == option ? .accentColor : .primary)
-                            Text(option.rawValue)
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            if selectedOption == option {
-                                Image(systemName: "checkmark")
-                                    .font(.body)
-                                    .foregroundStyle(.accentColor)
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                        .background(selectedOption == option ? Color.accentColor.opacity(0.1) : Color.clear)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    if option != JellyfinMediaLibraryView.SortOption.allCases.last {
-                        Divider()
-                            .padding(.leading, 66)
-                    }
-                }
+            optionsList
+        }
+        .frame(width: 660)
+        .background(popoverBackground)
+        .focusScope(focusNamespace)
+    }
+    
+    private var headerView: some View {
+        HStack {
+            Text("排序方式")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            Spacer()
+            Button {
+                isPresented = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .opacity(0.7)
+            }
+            .buttonStyle(.plain)
+            .focusable()
+        }
+        .padding()
+    }
+    
+    private var optionsList: some View {
+        VStack(spacing: 8) {
+            ForEach(JellyfinMediaLibraryView.SortOption.allCases, id: \.self) { option in
+                optionButton(for: option)
             }
         }
-        .frame(width: 400)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.systemBackground).opacity(0.98))
-                .shadow(radius: 20)
-        )
-        .animation(.easeInOut(duration: 0.3), value: isPresented)
+        .padding()
     }
-}
-
-#Preview {
-    @State var isPresented = true
-    @State var selectedOption = JellyfinMediaLibraryView.SortOption.recentlyWatched
     
-    return JellyfinSortSelectionPopover(
-        isPresented: $isPresented,
-        selectedOption: $selectedOption
-    )
+    private func optionButton(for option: JellyfinMediaLibraryView.SortOption) -> some View {
+        Button {
+            selectedOption = option
+            isPresented = false
+        } label: {
+            HStack {
+                Text(option.rawValue)
+                    .font(.title2)
+                    .opacity(selectedOption == option ? 1 : 0.8)
+                Spacer()
+                if selectedOption == option {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.accentColor)
+                }
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(focusedOption == option ? Color.accentColor.opacity(0.3) : Color.clear)
+            }
+        }
+        .buttonStyle(.plain)
+        .focused($focusedOption, equals: option)
+    }
+    
+    private var popoverBackground: some View {
+        RoundedRectangle(cornerRadius: 20)
+            .fill(Color.black.opacity(0.9))
+            .shadow(radius: 20)
+    }
 }

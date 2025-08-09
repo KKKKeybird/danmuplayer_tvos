@@ -83,7 +83,7 @@ struct DanmaSelectPopover: View {
             .frame(width: 480)
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color(.systemBackground).opacity(0.98))
+                    .fill(Color.black.opacity(0.98))
                     .shadow(radius: 16)
             )
         }

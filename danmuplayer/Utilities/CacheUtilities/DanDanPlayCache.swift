@@ -65,11 +65,11 @@ class DanDanPlayCache {
     // MARK: - 剧集信息缓存
     
     /// 缓存剧集信息（长期缓存，7天）
-    func cacheEpisodeInfo(_ episode: DanDanPlayEpisode, for fileurl: String) {
+    func cacheEpisodeInfo(_ episode: DanDanPlayEpisode, for fileurl: URL) {
         do {
             let cacheTime: TimeInterval = 7 * 24 * 3600  // 7天
             let item = try DanDanPlayCachedItem(data: episode, expiryDate: Date().addingTimeInterval(cacheTime))
-            let key = "episode_\(fileurl)" as NSString
+            let key = "episode_\(fileurl.absoluteString)" as NSString
             cache.setObject(item, forKey: key)
             
             saveToDisk(item, key: String(key))
@@ -79,8 +79,8 @@ class DanDanPlayCache {
     }
     
     /// 获取缓存的剧集信息
-    func getCachedEpisodeInfo(for fileurl: String) -> DanDanPlayEpisode? {
-        let key = "episode_\(fileurl)" as NSString
+    func getCachedEpisodeInfo(for fileurl: URL) -> DanDanPlayEpisode? {
+        let key = "episode_\(fileurl.absoluteString)" as NSString
         
         if let item = cache.object(forKey: key), !item.isExpired {
             return item.data as? DanDanPlayEpisode

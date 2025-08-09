@@ -793,7 +793,7 @@ class JellyfinClient {
             }
             
             guard httpResponse.statusCode == 200 else {
-                completion(.failure(NetworkError.httpError(httpResponse.statusCode)))
+                completion(.failure(NetworkError.serverError(200)))
                 return
             }
             
@@ -933,7 +933,7 @@ class JellyfinClient {
         return chineseTrack ?? tracks.first
     }
     
-    private func downloadAndConvertSubtitle(itemId: String, track: JellyfinSubtitleTrack, completion: @escaping (URL?) -> Void) {
+    func downloadAndConvertSubtitle(itemId: String, track: JellyfinSubtitleTrack, completion: @escaping (URL?) -> Void) {
         // 获取字幕URL（优先ASS格式）
         let subtitleURL: URL?
         if track.codec?.lowercased() == "ass" {
