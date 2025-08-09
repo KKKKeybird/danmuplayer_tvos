@@ -33,7 +33,8 @@ struct DanmakuCanvas: View {
         GeometryReader { proxy in
             let size = proxy.size
             ZStack(alignment: .topLeading) {
-                ForEach(Array(visibleComments.sorted { $0.time < $1.time }.enumerated()), id: \.offset) { _, c in
+                // 按时间排序确保先到先分配，避免同一时间批量落入同一轨道
+                ForEach(visibleComments.sorted { $0.time < $1.time }) { c in
                     if c.isScrolling {
                         let lane = laneForScrolling(comment: c)
                         scrollingView(for: c, lane: lane, size: size)
@@ -66,7 +67,7 @@ struct DanmakuCanvas: View {
         // 简单线性滚动，从右到左，8秒。暂停时 currentTime 不前进，位置保持不变
         let duration: Double = 8.0 / settings.speed
         let progress = max(0, min(1, (currentTime - c.time) / duration))
-        let x = size.width * (1 - progress) + 100
+        let x = size.width * (1 - progress) + 50
         let y = CGFloat( (lineHeight(size: size) * CGFloat(lane)) + lineHeight(size: size) * 0.6 )
 
         return Text(c.content)

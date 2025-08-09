@@ -17,7 +17,7 @@ struct VLCPlayerView: View {
     @StateObject private var overlayTimer = TimerProxy()
     
     @State private var vlcPlayer: VLCMediaPlayer?
-    @State private var isOverlayVisible = true
+    @State private var isOverlayVisible = false
     @State private var currentOverlayType: InformationOverlay.OverlayType = .main
     @State private var currentTime: Double = 0
     @State private var duration: Double = 0
@@ -78,10 +78,26 @@ struct VLCPlayerView: View {
             )
             .allowsHitTesting(false)
             
-            // 信息覆盖层，默认隐藏，用户操作时滑入，超时或恢复播放后滑出
-            if isOverlayVisible, let player = vlcPlayer {
-                topOverlayView(for: player, shouldRequestFocus: overlayFocusTarget == .top)
-                bottomOverlayView(for: player, shouldRequestFocus: overlayFocusTarget == .bottom)
+            // 信息覆盖层（加载中不显示），默认隐藏，用户操作时滑入，超时或恢复播放后滑出
+            if !viewModel.isLoading, isOverlayVisible, let player = vlcPlayer {
+                PlayerInformationOverlay(
+                    player: player,
+                    controlDelegate: PlayerControlDelegate(
+                        onDismiss: { cleanup(); onDismiss() },
+                        onShowAudioTracks: { showingAudioTrackOverlay = true },
+                        onShowSubtitles: { showingSubtitleOverlay = true },
+                        onToggleDanmaku: handleToggleDanmaku,
+                        onShowDanmakuMatch: { showingDanmakuMatchOverlay = true },
+                        onShowDanmakuSettings: { showingDanmakuSettingsOverlay = true }
+                    ),
+                    focusTarget: overlayFocusTarget == .top ? .top : .bottom,
+                    onRequestHide: {
+                        withAnimation(.easeInOut(duration: 0.25)) { isOverlayVisible = false }
+                        isMainFocused = true
+                    }
+                )
+                .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: overlayFocusTarget == .top ? .top : .bottom)),
+                                        removal: .opacity.combined(with: .move(edge: overlayFocusTarget == .top ? .top : .bottom))))
             }
             
             // 加载状态

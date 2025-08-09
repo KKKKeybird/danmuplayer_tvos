@@ -102,9 +102,9 @@ struct TopInformationOverlay: View {
         }
         .background(overlayTopGradient)
         .opacity(isVisible ? 1 : 0)
-        .onAppear {
-            startHideTimer()
-            if shouldRequestFocus {
+        .onAppear { startHideTimer() }
+        .onChange(of: isVisible) { newValue in
+            if newValue && shouldRequestFocus {
                 DispatchQueue.main.async { isTopDefaultFocused = true }
             }
         }
@@ -287,9 +287,9 @@ struct BottomInformationOverlay: View {
         }
         .background(overlayBottomGradient)
         .opacity(isVisible ? 1 : 0)
-        .onAppear {
-            startHideTimer()
-            if shouldRequestFocus {
+        .onAppear { startHideTimer() }
+        .onChange(of: isVisible) { newValue in
+            if newValue && shouldRequestFocus {
                 DispatchQueue.main.async { isBottomDefaultFocused = true }
             }
         }
@@ -447,5 +447,122 @@ extension TopInformationOverlay {
         case subtitle
         case danmakuMatch
         case danmakuSettings
+    }
+}
+
+// MARK: - 统一信息层（包含顶部与底部；动画/焦点由父层控制）
+@available(tvOS 17.0, *)
+struct PlayerInformationOverlay: View {
+    enum FocusTarget { case top, bottom }
+
+    @ObservedObject private var playerState: VLCPlayerState
+    let controlDelegate: VLCPlayerControlDelegate?
+    let focusTarget: FocusTarget
+    let onRequestHide: () -> Void
+
+    @FocusState private var isTopDefaultFocused: Bool
+    @FocusState private var isBottomDefaultFocused: Bool
+
+    init(player: VLCMediaPlayer, controlDelegate: VLCPlayerControlDelegate? = nil, focusTarget: FocusTarget, onRequestHide: @escaping () -> Void) {
+        self.playerState = VLCPlayerState(player: player)
+        self.controlDelegate = controlDelegate
+        self.focusTarget = focusTarget
+        self.onRequestHide = onRequestHide
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            // 顶部控制栏
+            topControlBar
+                .background(overlayTopGradient)
+                .transition(.move(edge: .top))
+
+            // 底部控制栏
+            VStack { Spacer(); bottomControlBar }
+                .background(overlayBottomGradient)
+                .transition(.move(edge: .bottom))
+        }
+        .onAppear {
+            // 仅在划入时由父层控制显示，这里设置默认焦点
+            DispatchQueue.main.async {
+                switch focusTarget {
+                case .top: isTopDefaultFocused = true
+                case .bottom: isBottomDefaultFocused = true
+                }
+            }
+        }
+        .onExitCommand {
+            onRequestHide()
+        }
+        .focusSection()
+    }
+
+    // MARK: - 子视图
+    private var topControlBar: some View {
+        HStack {
+            Button(action: { controlDelegate?.playerDidRequestDismiss() }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.left")
+                    Text("返回")
+                }
+                .foregroundColor(.white)
+                .font(.body)
+            }
+            .focused($isTopDefaultFocused)
+
+            Spacer()
+
+            HStack(spacing: 24) {
+                overlayButton(icon: "text.bubble", title: "弹幕") { controlDelegate?.playerDidRequestDanmakuToggle() }
+                overlayButton(icon: "magnifyingglass", title: "匹配") { controlDelegate?.playerDidRequestDanmakuMatch() }
+                overlayButton(icon: "slider.horizontal.3", title: "设置") { controlDelegate?.playerDidRequestDanmakuSettings() }
+                overlayButton(icon: "ladybug", title: "调试") {
+                    NotificationCenter.default.post(name: NSNotification.Name("DanmakuDebugToggle"), object: nil)
+                }
+            }
+        }
+        .padding(.horizontal, 50)
+        .padding(.top, 50)
+    }
+
+    private var bottomControlBar: some View {
+        VStack(spacing: 20) {
+            HStack(spacing: 50) {
+                overlayButton(icon: "speaker.wave.2", title: "音轨") { controlDelegate?.playerDidRequestAudioTrackSelection() }
+                Button(action: { playerState.player.rewind(15) }) { Image(systemName: "gobackward.15").font(.title2).foregroundColor(.white) }
+                Button(action: { playerState.togglePlayback() }) { Image(systemName: playerState.isPlaying ? "pause.fill" : "play.fill").font(.largeTitle).foregroundColor(.white) }
+                Button(action: { playerState.player.fastForward(15) }) { Image(systemName: "goforward.15").font(.title2).foregroundColor(.white) }
+                overlayButton(icon: "captions.bubble", title: "字幕") { controlDelegate?.playerDidRequestSubtitleSelection() }
+            }
+            .focused($isBottomDefaultFocused)
+
+            VStack(spacing: 12) {
+                HStack {
+                    Text(playerState.formattedCurrentTime).foregroundColor(.white).font(.caption)
+                    Spacer()
+                    Text(playerState.formattedDuration).foregroundColor(.white).font(.caption)
+                }
+                VLCProgressBar(playerState: playerState)
+            }
+        }
+        .padding(.horizontal, 50)
+        .padding(.bottom, 50)
+    }
+
+    // MARK: - 样式与辅助
+    private var overlayTopGradient: some View {
+        LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0.8), Color.clear]), startPoint: .top, endPoint: .center)
+    }
+    private var overlayBottomGradient: some View {
+        LinearGradient(gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.8)]), startPoint: .center, endPoint: .bottom)
+    }
+    private func overlayButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon).font(.title3)
+                Text(title).font(.caption2)
+            }
+            .foregroundColor(.white)
+        }
     }
 }
