@@ -1,0 +1,598 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 70;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		082CB98E2E464B8B00FDEE2E /* VLCUI in Frameworks */ = {isa = PBXBuildFile; productRef = 082CB98D2E464B8B00FDEE2E /* VLCUI */; };
+		085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 085DA4D62E44704D00C638F5 /* VLCKitSPM */; };
+		08B52A9F2E43927400D8EA9E /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 08B52A9E2E43926600D8EA9E /* README.md */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0822C93D2E42440B00609CE6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0822C9272E42440300609CE6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0822C92E2E42440300609CE6;
+			remoteInfo = danmuplayer;
+		};
+		0822C9472E42440B00609CE6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0822C9272E42440300609CE6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0822C92E2E42440300609CE6;
+			remoteInfo = danmuplayer;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0822C92F2E42440400609CE6 /* danmuplayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = danmuplayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0822C93C2E42440B00609CE6 /* danmuplayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = danmuplayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0822C9462E42440B00609CE6 /* danmuplayerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = danmuplayerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		08B52A9E2E43926600D8EA9E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		0822C9312E42440400609CE6 /* danmuplayer */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = danmuplayer; sourceTree = "<group>"; };
+		0822C93F2E42440B00609CE6 /* danmuplayerTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = danmuplayerTests; sourceTree = "<group>"; };
+		0822C9492E42440B00609CE6 /* danmuplayerUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = danmuplayerUITests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0822C92C2E42440300609CE6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				082CB98E2E464B8B00FDEE2E /* VLCUI in Frameworks */,
+				085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0822C9392E42440B00609CE6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0822C9432E42440B00609CE6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0822C9262E42440300609CE6 = {
+			isa = PBXGroup;
+			children = (
+				0822C9312E42440400609CE6 /* danmuplayer */,
+				0822C93F2E42440B00609CE6 /* danmuplayerTests */,
+				0822C9492E42440B00609CE6 /* danmuplayerUITests */,
+				0822C9302E42440400609CE6 /* Products */,
+				08B52A9E2E43926600D8EA9E /* README.md */,
+				082CB98C2E464B8B00FDEE2E /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		0822C9302E42440400609CE6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0822C92F2E42440400609CE6 /* danmuplayer.app */,
+				0822C93C2E42440B00609CE6 /* danmuplayerTests.xctest */,
+				0822C9462E42440B00609CE6 /* danmuplayerUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		082CB98C2E464B8B00FDEE2E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0822C92E2E42440300609CE6 /* danmuplayer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0822C9502E42440B00609CE6 /* Build configuration list for PBXNativeTarget "danmuplayer" */;
+			buildPhases = (
+				0822C92B2E42440300609CE6 /* Sources */,
+				0822C92C2E42440300609CE6 /* Frameworks */,
+				0822C92D2E42440300609CE6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0822C9312E42440400609CE6 /* danmuplayer */,
+			);
+			name = danmuplayer;
+			productName = danmuplayer;
+			productReference = 0822C92F2E42440400609CE6 /* danmuplayer.app */;
+			productType = "com.apple.product-type.application";
+		};
+		0822C93B2E42440B00609CE6 /* danmuplayerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0822C9532E42440B00609CE6 /* Build configuration list for PBXNativeTarget "danmuplayerTests" */;
+			buildPhases = (
+				0822C9382E42440B00609CE6 /* Sources */,
+				0822C9392E42440B00609CE6 /* Frameworks */,
+				0822C93A2E42440B00609CE6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0822C93E2E42440B00609CE6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0822C93F2E42440B00609CE6 /* danmuplayerTests */,
+			);
+			name = danmuplayerTests;
+			productName = danmuplayerTests;
+			productReference = 0822C93C2E42440B00609CE6 /* danmuplayerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		0822C9452E42440B00609CE6 /* danmuplayerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0822C9562E42440B00609CE6 /* Build configuration list for PBXNativeTarget "danmuplayerUITests" */;
+			buildPhases = (
+				0822C9422E42440B00609CE6 /* Sources */,
+				0822C9432E42440B00609CE6 /* Frameworks */,
+				0822C9442E42440B00609CE6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0822C9482E42440B00609CE6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0822C9492E42440B00609CE6 /* danmuplayerUITests */,
+			);
+			name = danmuplayerUITests;
+			productName = danmuplayerUITests;
+			productReference = 0822C9462E42440B00609CE6 /* danmuplayerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0822C9272E42440300609CE6 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					0822C92E2E42440300609CE6 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					0822C93B2E42440B00609CE6 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 0822C92E2E42440300609CE6;
+					};
+					0822C9452E42440B00609CE6 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 0822C92E2E42440300609CE6;
+					};
+				};
+			};
+			buildConfigurationList = 0822C92A2E42440300609CE6 /* Build configuration list for PBXProject "danmuplayer" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 0822C9262E42440300609CE6;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */,
+				082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */,
+			);
+			productRefGroup = 0822C9302E42440400609CE6 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0822C92E2E42440300609CE6 /* danmuplayer */,
+				0822C93B2E42440B00609CE6 /* danmuplayerTests */,
+				0822C9452E42440B00609CE6 /* danmuplayerUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0822C92D2E42440300609CE6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08B52A9F2E43927400D8EA9E /* README.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0822C93A2E42440B00609CE6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0822C9442E42440B00609CE6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0822C92B2E42440300609CE6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0822C9382E42440B00609CE6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0822C9422E42440B00609CE6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0822C93E2E42440B00609CE6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0822C92E2E42440300609CE6 /* danmuplayer */;
+			targetProxy = 0822C93D2E42440B00609CE6 /* PBXContainerItemProxy */;
+		};
+		0822C9482E42440B00609CE6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0822C92E2E42440300609CE6 /* danmuplayer */;
+			targetProxy = 0822C9472E42440B00609CE6 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0822C94E2E42440B00609CE6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = appletvos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TVOS_DEPLOYMENT_TARGET = 17.6;
+			};
+			name = Debug;
+		};
+		0822C94F2E42440B00609CE6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = appletvos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		0822C9512E42440B00609CE6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BZAGLXAUBG;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = DanmaPlayer;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoadsInWebContent = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Automatic;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = keybird.danmuplayer;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
+			};
+			name = Debug;
+		};
+		0822C9522E42440B00609CE6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BZAGLXAUBG;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = DanmaPlayer;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoadsInWebContent = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Automatic;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = keybird.danmuplayer;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 17.6;
+			};
+			name = Release;
+		};
+		0822C9542E42440B00609CE6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = keybird.danmuplayerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/danmuplayer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/danmuplayer";
+				TVOS_DEPLOYMENT_TARGET = 17.6;
+			};
+			name = Debug;
+		};
+		0822C9552E42440B00609CE6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = keybird.danmuplayerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/danmuplayer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/danmuplayer";
+				TVOS_DEPLOYMENT_TARGET = 17.6;
+			};
+			name = Release;
+		};
+		0822C9572E42440B00609CE6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = keybird.danmuplayerUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_TARGET_NAME = danmuplayer;
+			};
+			name = Debug;
+		};
+		0822C9582E42440B00609CE6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = keybird.danmuplayerUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_TARGET_NAME = danmuplayer;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0822C92A2E42440300609CE6 /* Build configuration list for PBXProject "danmuplayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0822C94E2E42440B00609CE6 /* Debug */,
+				0822C94F2E42440B00609CE6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0822C9502E42440B00609CE6 /* Build configuration list for PBXNativeTarget "danmuplayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0822C9512E42440B00609CE6 /* Debug */,
+				0822C9522E42440B00609CE6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0822C9532E42440B00609CE6 /* Build configuration list for PBXNativeTarget "danmuplayerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0822C9542E42440B00609CE6 /* Debug */,
+				0822C9552E42440B00609CE6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0822C9562E42440B00609CE6 /* Build configuration list for PBXNativeTarget "danmuplayerUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0822C9572E42440B00609CE6 /* Debug */,
+				0822C9582E42440B00609CE6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/LePips/VLCUI";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.7.3;
+			};
+		};
+		085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		082CB98D2E464B8B00FDEE2E /* VLCUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */;
+			productName = VLCUI;
+		};
+		085DA4D62E44704D00C638F5 /* VLCKitSPM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */;
+			productName = VLCKitSPM;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 0822C9272E42440300609CE6 /* Project object */;
+}
