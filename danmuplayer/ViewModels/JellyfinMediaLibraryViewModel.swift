@@ -382,7 +382,8 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
                 seasonName: "第一季",
                 indexNumber: 1, // 第1集
                 parentIndexNumber: 1, // 第1季
-                primaryImageAspectRatio: item.primaryImageAspectRatio
+                primaryImageAspectRatio: item.primaryImageAspectRatio,
+                mediaStreams: item.mediaStreams
             )
             completion(.success([movieAsEpisode]))
         } else if item.type == "Series" {

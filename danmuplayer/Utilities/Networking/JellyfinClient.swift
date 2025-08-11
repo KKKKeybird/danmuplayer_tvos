@@ -600,7 +600,7 @@ class JellyfinClient {
         group.enter()
         getExternalSubtitleIndexes(for: itemId) { result in
             if case .success(let indexes) = result, let first = indexes.first {
-                subtitleStreamIndex = first
+                subtitleStreamIndex = first.0
             }
             group.leave()
         }
@@ -840,8 +840,8 @@ class JellyfinClient {
                 // 解析MediaStreams，筛选所有外部字幕
                 let decoder = JSONDecoder()
                 let item = try decoder.decode(JellyfinMediaItem.self, from: data)
-                let results = item.mediaStreams?.enumerated().compactMap { (idx, stream) -> (Int, String)? in
-                    guard stream.type == "Subtitle", stream.isExternal == true else { return nil }
+                let results = item.mediaStreams?.compactMap { stream -> (Int, String)? in
+                    guard stream.type == "Subtitle", stream.isExternal == true, let idx = stream.index else { return nil }
                     let codec = stream.codec?.lowercased() ?? "unknown"
                     return (idx, codec)
                 } ?? []

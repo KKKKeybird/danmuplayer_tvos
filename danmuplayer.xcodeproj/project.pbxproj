@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		082CB98E2E464B8B00FDEE2E /* VLCUI in Frameworks */ = {isa = PBXBuildFile; productRef = 082CB98D2E464B8B00FDEE2E /* VLCUI */; };
+		082CBADF2E4A0E2B00FDEE2E /* 项目API.md in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADC2E4A0E2B00FDEE2E /* 项目API.md */; };
+		082CBAE02E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADD2E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md */; };
+		082CBAE12E4A0E2B00FDEE2E /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADE2E4A0E2B00FDEE2E /* LICENSE */; };
 		085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 085DA4D62E44704D00C638F5 /* VLCKitSPM */; };
 		08B52A9F2E43927400D8EA9E /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 08B52A9E2E43926600D8EA9E /* README.md */; };
 /* End PBXBuildFile section */
@@ -33,6 +36,9 @@
 		0822C92F2E42440400609CE6 /* danmuplayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = danmuplayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0822C93C2E42440B00609CE6 /* danmuplayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = danmuplayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0822C9462E42440B00609CE6 /* danmuplayerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = danmuplayerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		082CBADC2E4A0E2B00FDEE2E /* 项目API.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "项目API.md"; sourceTree = "<group>"; };
+		082CBADD2E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DANDANPLAY_API_SETUP.md; sourceTree = "<group>"; };
+		082CBADE2E4A0E2B00FDEE2E /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		08B52A9E2E43926600D8EA9E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -77,6 +83,9 @@
 				0822C9492E42440B00609CE6 /* danmuplayerUITests */,
 				0822C9302E42440400609CE6 /* Products */,
 				08B52A9E2E43926600D8EA9E /* README.md */,
+				082CBADC2E4A0E2B00FDEE2E /* 项目API.md */,
+				082CBADD2E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md */,
+				082CBADE2E4A0E2B00FDEE2E /* LICENSE */,
 				082CB98C2E464B8B00FDEE2E /* Frameworks */,
 			);
 			sourceTree = "<group>";
@@ -216,6 +225,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				082CBADF2E4A0E2B00FDEE2E /* 项目API.md in Resources */,
+				082CBAE02E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md in Resources */,
+				082CBAE12E4A0E2B00FDEE2E /* LICENSE in Resources */,
 				08B52A9F2E43927400D8EA9E /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

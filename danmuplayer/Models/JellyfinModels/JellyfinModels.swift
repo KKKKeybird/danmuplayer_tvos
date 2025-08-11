@@ -136,6 +136,55 @@ struct JellyfinLibrary: Codable, Identifiable {
     }
 }
 
+// MARK: - Jellyfin API 补充模型
+
+/// Jellyfin 媒体流（音频、视频、字幕等）
+struct JellyfinMediaStream: Codable {
+    let index: Int?
+    let codec: String?
+    let type: String?
+    let language: String?
+    let displayTitle: String?
+    let isDefault: Bool?
+    let isForced: Bool?
+    let isExternal: Bool?
+    let deliveryUrl: String?
+    let format: String?
+
+    enum CodingKeys: String, CodingKey {
+        case index = "Index"
+        case codec = "Codec"
+        case type = "Type"
+        case language = "Language"
+        case displayTitle = "DisplayTitle"
+        case isDefault = "IsDefault"
+        case isForced = "IsForced"
+        case isExternal = "IsExternal"
+        case deliveryUrl = "DeliveryUrl"
+        case format = "Format"
+    }
+}
+
+/// Jellyfin PlaybackInfo 响应
+struct JellyfinPlaybackInfoResponse: Codable {
+    let mediaSources: [JellyfinMediaSource]
+
+    enum CodingKeys: String, CodingKey {
+        case mediaSources = "MediaSources"
+    }
+}
+
+/// Jellyfin MediaSource
+struct JellyfinMediaSource: Codable {
+    let id: String?
+    let mediaStreams: [JellyfinMediaStream]
+
+    enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case mediaStreams = "MediaStreams"
+    }
+}
+
 /// Jellyfin媒体项目
 struct JellyfinMediaItem: Codable, Identifiable {
     let id: String
@@ -166,6 +215,7 @@ struct JellyfinMediaItem: Codable, Identifiable {
     let indexNumber: Int?
     let parentIndexNumber: Int?
     let primaryImageAspectRatio: Double?
+    let mediaStreams: [JellyfinMediaStream]?
     
     // 计算属性
     var posterImageUrl: String? {
@@ -210,6 +260,7 @@ struct JellyfinMediaItem: Codable, Identifiable {
         case indexNumber = "IndexNumber"
         case parentIndexNumber = "ParentIndexNumber"
         case primaryImageAspectRatio = "PrimaryImageAspectRatio"
+        case mediaStreams = "MediaStreams"
     }
 }
 
