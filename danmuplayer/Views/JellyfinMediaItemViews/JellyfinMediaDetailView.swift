@@ -8,7 +8,8 @@ struct JellyfinMediaDetailView: View {
     let viewModel: JellyfinMediaLibraryViewModel
     
     @State private var episodes: [JellyfinEpisode] = []
-    @State private var isLoading = false
+    @State private var isDetailLoading = false
+    @State private var isPlayerLoading = false
     @State private var errorMessage: String?
     @State private var selectedItem: JellyfinMediaItem?
     @State private var showingVideoPlayer = false
@@ -34,6 +35,7 @@ struct JellyfinMediaDetailView: View {
             }
             .navigationTitle(item.name)
             .onAppear {
+                print("[JellyfinMediaDetailView] onAppear called")
                 // 统一加载剧集结构（电影被当作只有一季一集的剧集）
                 loadEpisodesForUnifiedStructure()
             }
@@ -142,6 +144,7 @@ struct JellyfinMediaDetailView: View {
             Text(overview)
                 .font(.body)
                 .lineLimit(nil)
+                .focusable()
         }
     }
     
@@ -150,8 +153,7 @@ struct JellyfinMediaDetailView: View {
             Text(item.type == "Movie" ? "播放" : "剧集")
                 .font(.title2)
                 .fontWeight(.semibold)
-            
-            if isLoading {
+            if isDetailLoading {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
@@ -184,6 +186,15 @@ struct JellyfinMediaDetailView: View {
                             viewModel: viewModel,
                             onPlay: playItem
                         )
+                        if isPlayerLoading && selectedItem?.id == episode.id {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                Text("正在准备播放...")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
             }
@@ -200,15 +211,14 @@ struct JellyfinMediaDetailView: View {
             // 可以在这里显示错误提示
             return
         }
-        
-        // 先显示加载状态
-        isLoading = true
+        // 先显示播放器加载状态
+        isPlayerLoading = true
         errorMessage = nil
-        
+        selectedItem = mediaItem
         // 预处理媒体（包括获取字幕）
         viewModel.prepareMediaForPlayback(item: mediaItem) { playbackURL, subtitleURLs in
             DispatchQueue.main.async {
-                self.isLoading = false
+                self.isPlayerLoading = false
                 // 设置要播放的项目
                 self.selectedItem = mediaItem
                 self.showingVideoPlayer = true
@@ -218,16 +228,18 @@ struct JellyfinMediaDetailView: View {
     
     /// 统一加载剧集结构（电影被当作只有一季一集的剧集）
     private func loadEpisodesForUnifiedStructure() {
-        isLoading = true
+        print("[JellyfinMediaDetailView] loadEpisodesForUnifiedStructure called")
+        isDetailLoading = true
         errorMessage = nil
-        
+        print("[JellyfinMediaDetailView] isDetailLoading set to true")
         viewModel.getEpisodesForUnifiedStructure(for: item) { result in
             Task { @MainActor in
-                self.isLoading = false
+                self.isDetailLoading = false
+                print("[JellyfinMediaDetailView] isDetailLoading set to false (callback)")
                 switch result {
                 case .success(let episodes):
-                    self.episodes = episodes.sorted { 
-                        (($0.parentIndexNumber ?? 0), ($0.indexNumber ?? 0)) < 
+                    self.episodes = episodes.sorted {
+                        (($0.parentIndexNumber ?? 0), ($0.indexNumber ?? 0)) <
                         (($1.parentIndexNumber ?? 0), ($1.indexNumber ?? 0))
                     }
                 case .failure(let error):

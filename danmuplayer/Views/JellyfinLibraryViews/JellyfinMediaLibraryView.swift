@@ -8,7 +8,6 @@ struct JellyfinMediaLibraryView: View {
     @StateObject private var viewModel: JellyfinMediaLibraryViewModel
     @StateObject private var sortStore = MediaLibrarySortStore.shared
     @State private var selectedItem: JellyfinMediaItem?
-    @State private var showingMediaDetail = false
     @State private var sortOption: SortOption = .recentlyWatched
     @State private var isAscending: Bool = true
     @State private var showingSortMenu = false
@@ -77,13 +76,11 @@ struct JellyfinMediaLibraryView: View {
         .refreshable {
             viewModel.refresh()
         }
-        .sheet(isPresented: $showingMediaDetail) {
-            if let selectedItem = selectedItem {
-                JellyfinMediaDetailView(
-                    item: selectedItem, 
-                    viewModel: viewModel
-                )
-            }
+        .sheet(item: $selectedItem) { item in
+            JellyfinMediaDetailView(
+                item: item,
+                viewModel: viewModel
+            )
         }
     }
     
@@ -215,10 +212,7 @@ struct JellyfinMediaLibraryView: View {
     
     private func handleItemTap(_ item: JellyfinMediaItem) {
         selectedItem = item
-        
-        // 根据项目API设计：所有播放逻辑都在JellyfinMediaDetailView中处理
-        // 这里只负责显示详情页
-        showingMediaDetail = true
+        // 只需设置 selectedItem，sheet(item:) 会自动弹出详情页
     }
     
     // MARK: - 排序配置管理
