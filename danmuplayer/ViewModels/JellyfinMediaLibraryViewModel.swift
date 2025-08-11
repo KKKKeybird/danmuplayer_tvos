@@ -325,34 +325,13 @@ class JellyfinMediaLibraryViewModel: ObservableObject {
             DispatchQueue.main.async { completion(URL(string: "")!, []) }
             return
         }
-        
-        // 获取所有字幕轨道
-        client.getSubtitleTracks(for: item.id) { [weak self] result in
-            guard let self = self else {
-                DispatchQueue.main.async { completion(playbackURL, []) }
-                return
-            }
+
+        // 直接获取所有外挂字幕URL
+        client.getAllExternalSubtitleUrls(for: item.id) { result in
             switch result {
-            case .success(let tracks):
-                if tracks.isEmpty {
-                    DispatchQueue.main.async { completion(playbackURL, []) }
-                    return
-                }
-                // 下载所有字幕并缓存
-                let group = DispatchGroup()
-                var subtitleURLs: [URL] = []
-                for track in tracks {
-                    group.enter()
-                    self.client.downloadAndConvertSubtitle(itemId: item.id, track: track) { url in
-                        if let url = url {
-                            subtitleURLs.append(url)
-                        }
-                        group.leave()
-                    }
-                }
-                group.notify(queue: .main) {
-                    completion(playbackURL, subtitleURLs)
-                }
+            case .success(let subtitleInfos):
+                let urls = subtitleInfos.map { $0.url }
+                DispatchQueue.main.async { completion(playbackURL, urls) }
             case .failure(_):
                 DispatchQueue.main.async { completion(playbackURL, []) }
             }

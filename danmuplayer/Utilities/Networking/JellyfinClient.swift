@@ -587,42 +587,70 @@ class JellyfinClient {
     
     // MARK: - 获取播放URL
     func getPlaybackUrl(itemId: String) -> URL? {
-        guard let currentUserId = authenticatedUserId ?? userId else { 
+        guard let currentUserId = authenticatedUserId ?? userId else {
             print("Jellyfin: No user ID available for getPlaybackUrl")
-            return nil 
+            return nil
         }
-        
+
         print("Jellyfin: Getting playback URL for user ID: \(currentUserId), item: \(itemId)")
-        
+
+        // 默认取第一个外部字幕的index
+        var subtitleStreamIndex: Int? = nil
+        let group = DispatchGroup()
+        group.enter()
+        getExternalSubtitleIndexes(for: itemId) { result in
+            if case .success(let indexes) = result, let first = indexes.first {
+                subtitleStreamIndex = first
+            }
+            group.leave()
+        }
+        // 等待异步获取subtitle index（注意：此方法会阻塞当前线程，适合在后台线程调用）
+        group.wait()
+
         var components = URLComponents(url: serverURL.appendingPathComponent("Videos/\(itemId)/stream"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [
+        var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "UserId", value: currentUserId),
             URLQueryItem(name: "DeviceId", value: deviceId),
             URLQueryItem(name: "MediaSourceId", value: itemId),
             URLQueryItem(name: "Static", value: "true")
         ]
-        
-        if let apiKey = apiKey {
-            components?.queryItems?.append(URLQueryItem(name: "ApiKey", value: apiKey))
-        } else if let accessToken = accessToken {
-            components?.queryItems?.append(URLQueryItem(name: "AccessToken", value: accessToken))
+        if let idx = subtitleStreamIndex {
+            queryItems.append(URLQueryItem(name: "SubtitleMethod", value: "Embed"))
+            queryItems.append(URLQueryItem(name: "SubtitleStreamIndex", value: String(idx)))
         }
-        
+        if let apiKey = apiKey {
+            queryItems.append(URLQueryItem(name: "ApiKey", value: apiKey))
+        } else if let accessToken = accessToken {
+            queryItems.append(URLQueryItem(name: "AccessToken", value: accessToken))
+        }
+        components?.queryItems = queryItems
         return components?.url
     }
 
     // MARK: - 获取原始文件直链（支持 Range）
-    /// 优先尝试返回原始文件下载直链，VLC 将自行使用 HTTP Range 播放。
-    /// 若不可用，使用 getPlaybackUrl 作为回退。
+    /// 通过 /Videos/{Id}/stream API 获取原始文件直链，VLC 将自行使用 HTTP Range 播放。
+    /// 使用 Static=true 参数确保返回原始文件流。
     func getDirectFileUrl(itemId: String) -> URL? {
-        // 直链路径：Items/{itemId}/File
-        var components = URLComponents(url: serverURL.appendingPathComponent("Items/\(itemId)/File"), resolvingAgainstBaseURL: false)
-        // 通过查询参数附带 token，避免自定义 Header（VLC 无法自定义）
-        if let apiKey = apiKey {
-            components?.queryItems = [URLQueryItem(name: "api_key", value: apiKey)]
-        } else if let accessToken = accessToken {
-            components?.queryItems = [URLQueryItem(name: "api_key", value: accessToken)]
+        guard let currentUserId = authenticatedUserId ?? userId else {
+            print("Jellyfin: No user ID available for getDirectFileUrl")
+            return nil
         }
+
+        print("Jellyfin: Getting direct file URL for user ID: \(currentUserId), item: \(itemId)")
+
+        var components = URLComponents(url: serverURL.appendingPathComponent("Videos/\(itemId)/stream"), resolvingAgainstBaseURL: false)
+        var queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "UserId", value: currentUserId),
+            URLQueryItem(name: "DeviceId", value: deviceId),
+            URLQueryItem(name: "MediaSourceId", value: itemId),
+            URLQueryItem(name: "Static", value: "true")
+        ]
+        if let apiKey = apiKey {
+            queryItems.append(URLQueryItem(name: "ApiKey", value: apiKey))
+        } else if let accessToken = accessToken {
+            queryItems.append(URLQueryItem(name: "AccessToken", value: accessToken))
+        }
+        components?.queryItems = queryItems
         return components?.url
     }
     
@@ -769,326 +797,118 @@ class JellyfinClient {
     
     // MARK: - 字幕相关API
     
-    /// 获取媒体项的可用字幕列表
+    /// 获取媒体项的所有外部字幕流信息（index和格式）
     /// - Parameters:
     ///   - itemId: 媒体项ID
-    ///   - completion: 完成回调，返回字幕轨道数组
-    func getSubtitleTracks(for itemId: String, completion: @escaping (Result<[JellyfinSubtitleTrack], Error>) -> Void) {
+    ///   - completion: 完成回调，返回所有外部字幕的 (index, codec) 数组
+    func getExternalSubtitleIndexes(for itemId: String, completion: @escaping (Result<[(index: Int, codec: String)], Error>) -> Void) {
+        // 获取媒体项详情，解析MediaStreams
         guard let token = accessToken ?? apiKey else {
             completion(.failure(NetworkError.unauthorized))
             return
         }
-        
-        let endpoint = "/Videos/\(itemId)/Subtitles"
-        guard let url = URL(string: serverURL.absoluteString + endpoint) else {
+        let endpoint = "/Items/\(itemId)"
+        var components = URLComponents(string: serverURL.absoluteString + endpoint)
+        components?.queryItems = [
+            URLQueryItem(name: "api_key", value: token)
+        ]
+        guard let url = components?.url else {
             completion(.failure(NetworkError.invalidURL))
             return
         }
-        
         var request = URLRequest(url: url)
-        request.setValue("MediaBrowser Token=\"\(token)\"", forHTTPHeaderField: "Authorization")
+        request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
         urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
                 completion(.failure(error))
                 return
             }
-            
             guard let httpResponse = response as? HTTPURLResponse else {
                 completion(.failure(NetworkError.invalidResponse))
                 return
             }
-            
             guard httpResponse.statusCode == 200 else {
-                completion(.failure(NetworkError.serverError(200)))
+                completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
                 return
             }
-            
             guard let data = data else {
                 completion(.failure(NetworkError.noData))
                 return
             }
-            
             do {
-                let subtitleTracks = try JSONDecoder().decode([JellyfinSubtitleTrack].self, from: data)
-                completion(.success(subtitleTracks))
+                // 解析MediaStreams，筛选所有外部字幕
+                let decoder = JSONDecoder()
+                let item = try decoder.decode(JellyfinMediaItem.self, from: data)
+                let results = item.mediaStreams?.enumerated().compactMap { (idx, stream) -> (Int, String)? in
+                    guard stream.type == "Subtitle", stream.isExternal == true else { return nil }
+                    let codec = stream.codec?.lowercased() ?? "unknown"
+                    return (idx, codec)
+                } ?? []
+                completion(.success(results))
             } catch {
                 completion(.failure(error))
             }
         }.resume()
     }
-    
-    /// 获取指定字幕轨道的字幕URL
+        /// 获取所有外挂字幕流的可访问URL（基于PlaybackInfo的DeliveryUrl）
     /// - Parameters:
     ///   - itemId: 媒体项ID
-    ///   - subtitleIndex: 字幕轨道索引
-    ///   - format: 字幕格式 (srt, vtt, ass等)
-    /// - Returns: 字幕文件的URL
-    func getSubtitleURL(for itemId: String, subtitleIndex: Int, format: String = "srt") -> URL? {
-        guard let token = accessToken ?? apiKey else { return nil }
-        
-        let endpoint = "/Videos/\(itemId)/\(subtitleIndex)/Subtitles.\(format)"
-        guard let baseURL = URL(string: serverURL.absoluteString + endpoint) else { return nil }
-        
-        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+    ///   - completion: 完成回调，返回所有外挂字幕的URL数组（含格式信息）
+    func getAllExternalSubtitleUrls(for itemId: String, completion: @escaping (Result<[(url: URL, format: String, language: String?, displayTitle: String?)], Error>) -> Void) {
+        guard let token = accessToken ?? apiKey else {
+            completion(.failure(NetworkError.unauthorized))
+            return
+        }
+        let endpoint = "/Items/\(itemId)/PlaybackInfo"
+        var components = URLComponents(string: serverURL.absoluteString + endpoint)
         components?.queryItems = [
             URLQueryItem(name: "api_key", value: token)
         ]
-        
-        return components?.url
-    }
-    
-    /// 获取推荐的字幕轨道（优先中文字幕）
-    /// - Parameters:
-    ///   - itemId: 媒体项ID
-    ///   - completion: 完成回调，返回推荐的字幕URL
-    func getRecommendedSubtitleURL(for itemId: String, completion: @escaping (URL?) -> Void) {
-        getSubtitleTracks(for: itemId) { [weak self] result in
-            guard let self = self else {
-                completion(nil)
-                return
-            }
-            
-            switch result {
-            case .success(let tracks):
-                // 查找中文字幕
-                let chineseTrack = tracks.first { track in
-                    let language = track.language?.lowercased() ?? ""
-                    let displayTitle = track.displayTitle?.lowercased() ?? ""
-                    return language.contains("zh") || language.contains("chinese") || 
-                           displayTitle.contains("chinese") || displayTitle.contains("中文") ||
-                           displayTitle.contains("chs") || displayTitle.contains("cht")
-                }
-                
-                // 如果有中文字幕，使用中文字幕
-                if let chineseTrack = chineseTrack {
-                    let subtitleURL = self.getSubtitleURL(for: itemId, subtitleIndex: chineseTrack.index)
-                    completion(subtitleURL)
-                    return
-                }
-                
-                // 否则使用第一个可用的字幕
-                if let firstTrack = tracks.first {
-                    let subtitleURL = self.getSubtitleURL(for: itemId, subtitleIndex: firstTrack.index)
-                    completion(subtitleURL)
-                    return
-                }
-                
-                completion(nil)
-                
-            case .failure(_):
-                completion(nil)
-            }
-        }
-    }
-    
-    /// 获取并缓存ASS字幕文件（用于播放前预处理）
-    /// - Parameters:
-    ///   - itemId: 媒体项ID
-    ///   - completion: 完成回调，返回本地临时ASS文件URL
-    func getAndCacheASSSubtitle(for itemId: String, completion: @escaping (URL?) -> Void) {
-        // 首先检查是否有缓存的ASS字幕
-        if let cachedSubtitleURL = getCachedSubtitleURL(for: itemId) {
-            completion(cachedSubtitleURL)
+        guard let url = components?.url else {
+            completion(.failure(NetworkError.invalidURL))
             return
         }
-        
-        // 获取推荐的字幕轨道
-        getSubtitleTracks(for: itemId) { [weak self] result in
-            guard let self = self else {
-                completion(nil)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlSession.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
                 return
             }
-            
-            switch result {
-            case .success(let tracks):
-                guard !tracks.isEmpty else {
-                    completion(nil)
-                    return
-                }
-                
-                // 查找最佳字幕（优先中文）
-                let bestTrack = self.findBestSubtitleTrack(in: tracks)
-                guard let track = bestTrack else {
-                    completion(nil)
-                    return
-                }
-                
-                // 下载字幕内容并转换为ASS格式
-                self.downloadAndConvertSubtitle(itemId: itemId, track: track) { assFileURL in
-                    completion(assFileURL)
-                }
-                
-            case .failure(_):
-                completion(nil)
-            }
-        }
-    }
-    
-    // MARK: - 私有字幕处理方法
-    
-    private func findBestSubtitleTrack(in tracks: [JellyfinSubtitleTrack]) -> JellyfinSubtitleTrack? {
-        // 查找中文字幕
-        let chineseTrack = tracks.first { track in
-            let language = track.language?.lowercased() ?? ""
-            let displayTitle = track.displayTitle?.lowercased() ?? ""
-            return language.contains("zh") || language.contains("chinese") || 
-                   displayTitle.contains("chinese") || displayTitle.contains("中文") ||
-                   displayTitle.contains("chs") || displayTitle.contains("cht")
-        }
-        
-        return chineseTrack ?? tracks.first
-    }
-    
-    func downloadAndConvertSubtitle(itemId: String, track: JellyfinSubtitleTrack, completion: @escaping (URL?) -> Void) {
-        // 获取字幕URL（优先ASS格式）
-        let subtitleURL: URL?
-        if track.codec?.lowercased() == "ass" {
-            subtitleURL = getSubtitleURL(for: itemId, subtitleIndex: track.index, format: "ass")
-        } else {
-            subtitleURL = getSubtitleURL(for: itemId, subtitleIndex: track.index, format: "srt")
-        }
-        
-        guard let url = subtitleURL else {
-            completion(nil)
-            return
-        }
-        
-        // 下载字幕内容
-        urlSession.dataTask(with: url) { [weak self] data, response, error in
-            guard let self = self,
-                  let data = data,
-                  error == nil else {
-                completion(nil)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(NetworkError.invalidResponse))
                 return
             }
-            
-            // 将字幕内容保存为本地临时文件
-            DispatchQueue.global(qos: .background).async {
-                let localURL = self.saveSubtitleToTempFile(data: data, itemId: itemId, format: track.codec?.lowercased() ?? "srt")
-                
-                DispatchQueue.main.async {
-                    completion(localURL)
-                }
+            guard httpResponse.statusCode == 200 else {
+                completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
+                return
+            }
+            guard let data = data else {
+                completion(.failure(NetworkError.noData))
+                return
+            }
+            do {
+                // 解析PlaybackInfo，提取所有外挂字幕流的DeliveryUrl
+                let decoder = JSONDecoder()
+                let playbackInfo = try decoder.decode(JellyfinPlaybackInfoResponse.self, from: data)
+                let baseUrl = self.serverURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                let tokenParam = (self.apiKey != nil) ? "?api_key=\(self.apiKey!)" : (self.accessToken != nil ? "?api_key=\(self.accessToken!)" : "")
+                let results: [(URL, String, String?, String?)] = playbackInfo.mediaSources.first?.mediaStreams.compactMap { stream in
+                    guard stream.type == "Subtitle", stream.isExternal == true, let deliveryUrl = stream.deliveryUrl, let format = stream.format else { return nil }
+                    // 拼接完整URL
+                    let urlString = baseUrl + deliveryUrl + tokenParam
+                    if let url = URL(string: urlString) {
+                        return (url, format, stream.language, stream.displayTitle)
+                    }
+                    return nil
+                } ?? []
+                completion(.success(results))
+            } catch {
+                completion(.failure(error))
             }
         }.resume()
-    }
-    
-    private func saveSubtitleToTempFile(data: Data, itemId: String, format: String) -> URL? {
-        let tempDir = FileManager.default.temporaryDirectory
-        let subtitleDir = tempDir.appendingPathComponent("jellyfin_subtitles", isDirectory: true)
-        
-        // 确保目录存在
-        try? FileManager.default.createDirectory(at: subtitleDir, withIntermediateDirectories: true)
-        
-        let fileName = "\(itemId)_subtitle.\(format == "ass" ? "ass" : "srt")"
-        let fileURL = subtitleDir.appendingPathComponent(fileName)
-        
-        do {
-            // 如果是SRT格式，尝试转换为ASS
-            if format != "ass" {
-                if let srtString = String(data: data, encoding: .utf8) {
-                    let assString = convertSRTToASS(srtString)
-                    let assData = assString.data(using: .utf8) ?? data
-                    let assFileName = "\(itemId)_subtitle.ass"
-                    let assFileURL = subtitleDir.appendingPathComponent(assFileName)
-                    try assData.write(to: assFileURL)
-                    return assFileURL
-                }
-            }
-            
-            // 直接保存原始格式
-            try data.write(to: fileURL)
-            return fileURL
-        } catch {
-            print("保存字幕文件失败: \(error)")
-            return nil
-        }
-    }
-    
-    private func getCachedSubtitleURL(for itemId: String) -> URL? {
-        let tempDir = FileManager.default.temporaryDirectory
-        let subtitleDir = tempDir.appendingPathComponent("jellyfin_subtitles", isDirectory: true)
-        
-        // 检查ASS文件
-        let assFile = subtitleDir.appendingPathComponent("\(itemId)_subtitle.ass")
-        if FileManager.default.fileExists(atPath: assFile.path) {
-            // 检查文件是否过期（24小时）
-            if let attributes = try? FileManager.default.attributesOfItem(atPath: assFile.path),
-               let creationDate = attributes[.creationDate] as? Date,
-               Date().timeIntervalSince(creationDate) < 24 * 60 * 60 {
-                return assFile
-            }
-        }
-        
-        // 检查SRT文件
-        let srtFile = subtitleDir.appendingPathComponent("\(itemId)_subtitle.srt")
-        if FileManager.default.fileExists(atPath: srtFile.path) {
-            if let attributes = try? FileManager.default.attributesOfItem(atPath: srtFile.path),
-               let creationDate = attributes[.creationDate] as? Date,
-               Date().timeIntervalSince(creationDate) < 24 * 60 * 60 {
-                return srtFile
-            }
-        }
-        
-        return nil
-    }
-    
-    private func convertSRTToASS(_ srtContent: String) -> String {
-        // 简单的SRT到ASS转换
-        let assHeader = """
-        [Script Info]
-        Title: Jellyfin Subtitle
-        ScriptType: v4.00+
-
-        [V4+ Styles]
-        Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-        Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1
-
-        [Events]
-        Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-
-        """
-        
-        var assContent = assHeader
-        
-        // 解析SRT内容
-        let srtBlocks = srtContent.components(separatedBy: "\n\n")
-        
-        for block in srtBlocks {
-            let lines = block.components(separatedBy: "\n")
-            if lines.count >= 3 {
-                // 解析时间码
-                let timeLine = lines[1]
-                if let convertedTime = convertSRTTimeToASS(timeLine) {
-                    // 解析文本内容
-                    let textLines = Array(lines[2...])
-                    let text = textLines.joined(separator: "\\N")
-                    
-                    assContent += "Dialogue: 0,\(convertedTime),Default,,0,0,0,,\(text)\n"
-                }
-            }
-        }
-        
-        return assContent
-    }
-    
-    private func convertSRTTimeToASS(_ srtTime: String) -> String? {
-        // SRT: 00:00:20,000 --> 00:00:24,400
-        // ASS: 0:00:20.00,0:00:24.40
-        
-        let components = srtTime.components(separatedBy: " --> ")
-        guard components.count == 2 else { return nil }
-        
-        let startTime = components[0].replacingOccurrences(of: ",", with: ".")
-        let endTime = components[1].replacingOccurrences(of: ",", with: ".")
-        
-        // 移除小时前的0
-        let cleanStartTime = startTime.hasPrefix("00:") ? String(startTime.dropFirst(3)) : startTime
-        let cleanEndTime = endTime.hasPrefix("00:") ? String(endTime.dropFirst(3)) : endTime
-        
-        return "\(cleanStartTime),\(cleanEndTime)"
     }
 }
 
