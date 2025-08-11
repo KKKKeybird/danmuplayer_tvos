@@ -321,7 +321,7 @@ struct VLCPlayerView: View {
     private func extractLanguageFromFileName(_ fileName: String) -> String? {
         let lowercased = fileName.lowercased()
         
-        if lowercased.contains("zh") || lowercased.contains("chinese") || lowercased.contains("中文") {
+        if lowercased.contains("zh") || lowercased.contains("chi") || lowercased.contains("chinese") || lowercased.contains("中文") {
             return "中文"
         } else if lowercased.contains("en") || lowercased.contains("english") || lowercased.contains("英文") {
             return "English"
@@ -614,13 +614,18 @@ class VLCVideoPlayerUIView: UIView {
         let player = VLCMediaPlayer()
         let media = VLCMedia(url: url)
         // 优化视频解码与缓存
-        media.addOptions([
+        var options: [String: Any] = [
             "network-caching": 1000,              // 网络缓存(ms)
             "clock-jitter": 0,
             "clock-synchro": 0,
             "codec": "mediacodec_ndk,all",     // 尝试硬件解码（Android风格，VLCKit会忽略不支持项）
             "avcodec-hw": "any",                // 允许硬件加速
-        ])
+        ]
+        // 字幕字体回退
+        let fallbackFont = "PingFang SC"
+        options["freetype-font"] = fallbackFont
+        options["freetype-rel-fontsize"] = 32 // 可根据需要调整字号
+        media.addOptions(options)
         player.media = media
         player.drawable = self
         

@@ -804,6 +804,7 @@ class JellyfinClient {
     func getExternalSubtitleIndexes(for itemId: String, completion: @escaping (Result<[(index: Int, codec: String)], Error>) -> Void) {
         // 获取媒体项详情，解析MediaStreams
         guard let token = accessToken ?? apiKey else {
+            print("[JellyfinClient] getExternalSubtitleIndexes: 未获取到token，无法请求外部字幕流")
             completion(.failure(NetworkError.unauthorized))
             return
         }
@@ -813,26 +814,33 @@ class JellyfinClient {
             URLQueryItem(name: "api_key", value: token)
         ]
         guard let url = components?.url else {
+            print("[JellyfinClient] getExternalSubtitleIndexes: URL拼接失败")
             completion(.failure(NetworkError.invalidURL))
             return
         }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        print("[JellyfinClient] getExternalSubtitleIndexes: 请求URL: \(url)")
         urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
+                print("[JellyfinClient] getExternalSubtitleIndexes: 请求失败: \(error)")
                 completion(.failure(error))
                 return
             }
             guard let httpResponse = response as? HTTPURLResponse else {
+                print("[JellyfinClient] getExternalSubtitleIndexes: 响应无效")
                 completion(.failure(NetworkError.invalidResponse))
                 return
             }
+            print("[JellyfinClient] getExternalSubtitleIndexes: 响应状态码: \(httpResponse.statusCode)")
             guard httpResponse.statusCode == 200 else {
+                print("[JellyfinClient] getExternalSubtitleIndexes: 响应错误状态码: \(httpResponse.statusCode)")
                 completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
                 return
             }
             guard let data = data else {
+                print("[JellyfinClient] getExternalSubtitleIndexes: 响应无数据")
                 completion(.failure(NetworkError.noData))
                 return
             }
@@ -845,18 +853,25 @@ class JellyfinClient {
                     let codec = stream.codec?.lowercased() ?? "unknown"
                     return (idx, codec)
                 } ?? []
+                print("[JellyfinClient] getExternalSubtitleIndexes: 解析到外部字幕流: \(results)")
                 completion(.success(results))
             } catch {
+                print("[JellyfinClient] getExternalSubtitleIndexes: 解析失败: \(error)")
+                if let str = String(data: data, encoding: .utf8) {
+                    print("[JellyfinClient] getExternalSubtitleIndexes: 原始响应: \(str)")
+                }
                 completion(.failure(error))
             }
         }.resume()
     }
-        /// 获取所有外挂字幕流的可访问URL（基于PlaybackInfo的DeliveryUrl）
+
+    /// 获取所有外挂字幕流的可访问URL（基于PlaybackInfo的DeliveryUrl）
     /// - Parameters:
     ///   - itemId: 媒体项ID
     ///   - completion: 完成回调，返回所有外挂字幕的URL数组（含格式信息）
     func getAllExternalSubtitleUrls(for itemId: String, completion: @escaping (Result<[(url: URL, format: String, language: String?, displayTitle: String?)], Error>) -> Void) {
         guard let token = accessToken ?? apiKey else {
+            print("[JellyfinClient] getAllExternalSubtitleUrls: 未获取到token，无法请求外挂字幕URL")
             completion(.failure(NetworkError.unauthorized))
             return
         }
@@ -866,46 +881,73 @@ class JellyfinClient {
             URLQueryItem(name: "api_key", value: token)
         ]
         guard let url = components?.url else {
+            print("[JellyfinClient] getAllExternalSubtitleUrls: URL拼接失败")
             completion(.failure(NetworkError.invalidURL))
             return
         }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        print("[JellyfinClient] getAllExternalSubtitleUrls: 请求URL: \(url)")
         urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
+                print("[JellyfinClient] getAllExternalSubtitleUrls: 请求失败: \(error)")
                 completion(.failure(error))
                 return
             }
             guard let httpResponse = response as? HTTPURLResponse else {
+                print("[JellyfinClient] getAllExternalSubtitleUrls: 响应无效")
                 completion(.failure(NetworkError.invalidResponse))
                 return
             }
+            print("[JellyfinClient] getAllExternalSubtitleUrls: 响应状态码: \(httpResponse.statusCode)")
             guard httpResponse.statusCode == 200 else {
+                print("[JellyfinClient] getAllExternalSubtitleUrls: 响应错误状态码: \(httpResponse.statusCode)")
                 completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
                 return
             }
             guard let data = data else {
+                print("[JellyfinClient] getAllExternalSubtitleUrls: 响应无数据")
                 completion(.failure(NetworkError.noData))
                 return
             }
             do {
-                // 解析PlaybackInfo，提取所有外挂字幕流的DeliveryUrl
+                // 输出原始JSON
+                if let str = String(data: data, encoding: .utf8) {
+                    print("[JellyfinClient] getAllExternalSubtitleUrls: 原始响应: \(str)")
+                }
+                // 解析PlaybackInfo，提取所有外挂字幕流的DeliveryUrl或拼接直链
                 let decoder = JSONDecoder()
                 let playbackInfo = try decoder.decode(JellyfinPlaybackInfoResponse.self, from: data)
                 let baseUrl = self.serverURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 let tokenParam = (self.apiKey != nil) ? "?api_key=\(self.apiKey!)" : (self.accessToken != nil ? "?api_key=\(self.accessToken!)" : "")
+                let itemId = playbackInfo.mediaSources.first?.id ?? ""
                 let results: [(URL, String, String?, String?)] = playbackInfo.mediaSources.first?.mediaStreams.compactMap { stream in
-                    guard stream.type == "Subtitle", stream.isExternal == true, let deliveryUrl = stream.deliveryUrl, let format = stream.format else { return nil }
-                    // 拼接完整URL
-                    let urlString = baseUrl + deliveryUrl + tokenParam
-                    if let url = URL(string: urlString) {
-                        return (url, format, stream.language, stream.displayTitle)
+                    guard stream.type == "Subtitle", stream.isExternal == true else { return nil }
+                    // 优先用 deliveryUrl
+                    if let deliveryUrl = stream.deliveryUrl, let format = stream.format {
+                        let urlString = baseUrl + deliveryUrl + tokenParam
+                        if let url = URL(string: urlString) {
+                            return (url, format, stream.language, stream.displayTitle)
+                        }
+                    }
+                    // 没有 deliveryUrl 时，尝试拼接 /Items/{itemId}/Subtitles/{index}/0/Stream.{ext}
+                    if !itemId.isEmpty, let idx = stream.index, let codec = stream.codec {
+                        let ext = codec.lowercased()
+                        let urlString = "\(baseUrl)/Items/\(itemId)/Subtitles/\(idx)/0/Stream.\(ext)\(tokenParam)"
+                        if let url = URL(string: urlString) {
+                            return (url, ext, stream.language, stream.displayTitle)
+                        }
                     }
                     return nil
                 } ?? []
+                print("[JellyfinClient] getAllExternalSubtitleUrls: 解析到外挂字幕流: \(results)")
                 completion(.success(results))
             } catch {
+                print("[JellyfinClient] getAllExternalSubtitleUrls: 解析失败: \(error)")
+                if let str = String(data: data, encoding: .utf8) {
+                    print("[JellyfinClient] getAllExternalSubtitleUrls: 原始响应: \(str)")
+                }
                 completion(.failure(error))
             }
         }.resume()
