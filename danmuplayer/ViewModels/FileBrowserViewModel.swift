@@ -13,7 +13,6 @@ class FileBrowserViewModel: ObservableObject {
             case .success(let videoURL):
                 let subtitleItems = self.findSubtitleFiles(for: item)
                 let subtitleURLs: [URL] = subtitleItems.compactMap { self.constructWebDAVURL(for: $0) }
-                print("[调试] subtitleURLs: \(subtitleURLs)")
                 completion(videoURL, subtitleURLs)
             case .failure:
                 // 失败时只返回空数组
@@ -129,18 +128,26 @@ class FileBrowserViewModel: ObservableObject {
         webDAVClient.getStreamingURL(for: item.path, completion: completion)
     }
 
-    // MARK: - 查找同目录下的字幕文件
-    /// 查找所有同目录下与视频相关的字幕文件（字幕文件名必须包含视频原始文件名，且扩展名为字幕类型）
     func findSubtitleFiles(for videoItem: WebDAVItem) -> [WebDAVItem] {
         let videoBaseName = (videoItem.name as NSString).deletingPathExtension.lowercased()
         let subtitleExtensions = ["srt", "ass", "ssa", "vtt"]
+        
         return items.filter { item in
             guard !item.isDirectory else { return false }
+            
             let ext = (item.name as NSString).pathExtension.lowercased()
-            let nameNoExt = (item.name as NSString).deletingPathExtension.lowercased()
-            return subtitleExtensions.contains(ext) && nameNoExt.contains(videoBaseName)
+            guard subtitleExtensions.contains(ext) else { return false }
+            
+            // 取掉扩展名后的部分（可能还包含语言标识）
+            let nameWithoutExt = (item.name as NSString).deletingPathExtension.lowercased()
+            
+            // 取 nameWithoutExt 的第一个段（按 . 切分）
+            let firstPart = nameWithoutExt.split(separator: ".").first.map(String.init) ?? nameWithoutExt
+            
+            return firstPart.contains(videoBaseName)
         }
     }
+
 
     // MARK: - 支持文件排序（名称、日期、大小）
     func sortItems(by option: SortOption, isAscending: Bool = true) {

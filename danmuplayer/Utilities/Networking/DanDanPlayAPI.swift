@@ -212,8 +212,8 @@ class DanDanPlayAPI {
             ]
             let hasHash = !fileInfo.fileHash.isEmpty && fileInfo.fileHash.count == 32
             let hasSize = fileInfo.fileSize > 0
-            if hasHash { requestBody["fileHash"] = fileInfo.fileHash }
-            if hasSize { requestBody["fileSize"] = fileInfo.fileSize }
+            if hasHash { requestBody["fileHash"] = fileInfo.fileHash } else { requestBody["fileHash"] = String(repeating: "0", count: 32) }
+            if hasSize { requestBody["fileSize"] = fileInfo.fileSize } else { requestBody["fileSize"] = "1000" }
             requestBody["matchMode"] = (hasHash && hasSize) ? "hashAndFileName" : "fileNameOnly"
 
             do {
@@ -230,58 +230,58 @@ class DanDanPlayAPI {
             }
 
             self.session.dataTask(with: request) { data, response, error in
-            if error != nil {
-                completion(.failure(NetworkError.connectionFailed))
-                return
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(NetworkError.invalidResponse))
-                return
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
-                return
-            }
-            
-            guard let data = data else {
-                completion(.failure(NetworkError.noData))
-                return
-            }
-            
-            do {
-                let matchResult = try JSONDecoder().decode(DanDanPlayMatchResult.self, from: data)
-                
-                // 检查API调用是否成功
-                guard matchResult.success, matchResult.errorCode == 0 else {
-                    print("Match API调用失败: \(matchResult.errorMessage ?? "未知错误")")
-                    // 回退到搜索API
-                    completion(.failure(NetworkError.serverError(matchResult.errorCode)))
+                if error != nil {
+                    completion(.failure(NetworkError.connectionFailed))
                     return
                 }
                 
-                if let matches = matchResult.matches, !matches.isEmpty {
-                    let episodeList = matches.map { match in
-                        DanDanPlayEpisode(
-                            animeId: match.animeId,
-                            animeTitle: match.animeTitle ?? "未知作品",
-                            episodeId: Int(match.episodeId), // 转换为Int
-                            episodeTitle: match.episodeTitle ?? "未知剧集",
-                            shift: match.shift // 保留偏移时间信息
-                        )
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(.failure(NetworkError.invalidResponse))
+                    return
+                }
+                
+                guard httpResponse.statusCode == 200 else {
+                    completion(.failure(NetworkError.serverError(httpResponse.statusCode)))
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(.failure(NetworkError.noData))
+                    return
+                }
+                
+                do {
+                    let matchResult = try JSONDecoder().decode(DanDanPlayMatchResult.self, from: data)
+                    
+                    // 检查API调用是否成功
+                    guard matchResult.success, matchResult.errorCode == 0 else {
+                        print("Match API调用失败: \(matchResult.errorMessage ?? "未知错误")")
+                        // 回退到搜索API
+                        completion(.failure(NetworkError.serverError(matchResult.errorCode)))
+                        return
                     }
                     
-                    completion(.success(episodeList))
-                } else {
-                    completion(.failure(NetworkError.notFound))
+                    if let matches = matchResult.matches, !matches.isEmpty {
+                        let episodeList = matches.map { match in
+                            DanDanPlayEpisode(
+                                animeId: match.animeId,
+                                animeTitle: match.animeTitle ?? "未知作品",
+                                episodeId: Int(match.episodeId), // 转换为Int
+                                episodeTitle: match.episodeTitle ?? "未知剧集",
+                                shift: match.shift // 保留偏移时间信息
+                            )
+                        }
+                        
+                        completion(.success(episodeList))
+                    } else {
+                        completion(.failure(NetworkError.notFound))
+                        return
+                    }
+                } catch {
+                    completion(.failure(NetworkError.parseError))
                     return
                 }
-            } catch {
-                completion(.failure(NetworkError.parseError))
-                return
-            }
-        }.resume()
+            }.resume()
         }
     }
 
@@ -423,7 +423,11 @@ extension DanDanPlayAPI {
         // 去除扩展名
         if let dot = s.lastIndex(of: ".") { s = String(s[..<dot]) }
         // 去除中括号/小括号/大括号内的内容（字幕组、语言、分辨率等）
-        let patterns = ["\\[.*?\\]", "\\(.*?\\)", "\\{.*?\\}"]
+        let patterns = [
+            "\\[[^\\d\\]]*\\]",  // 方括号
+            "\\([^\\d\\)]*\\)",  // 圆括号
+            "\\{[^\\d\\}]*\\}"   // 大括号
+        ]
         for p in patterns {
             s = s.replacingOccurrences(of: p, with: " ", options: .regularExpression)
         }

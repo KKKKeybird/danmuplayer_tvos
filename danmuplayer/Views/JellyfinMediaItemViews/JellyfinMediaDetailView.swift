@@ -143,7 +143,8 @@ struct JellyfinMediaDetailView: View {
             
             Text(overview)
                 .font(.body)
-                .lineLimit(nil)
+                .lineLimit(8) // 限制最多显示8行
+                .truncationMode(.tail)
                 .focusable()
         }
     }

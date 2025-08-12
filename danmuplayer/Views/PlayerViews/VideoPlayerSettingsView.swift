@@ -439,7 +439,6 @@ extension VideoPlayerSettingsView {
     }
 
     private func fetchCandidateEpisodes() {
-        // 使用播放器创建时传入的文件名，而不是自己解析URL
         DanDanPlayAPI().fetchCandidateEpisodeList(for: videoURL, overrideFileName: originalFileName) { result in
             DispatchQueue.main.async {
                 switch result {

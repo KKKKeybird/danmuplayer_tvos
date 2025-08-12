@@ -924,14 +924,7 @@ class JellyfinClient {
                 let itemId = playbackInfo.mediaSources.first?.id ?? ""
                 let results: [(URL, String, String?, String?)] = playbackInfo.mediaSources.first?.mediaStreams.compactMap { stream in
                     guard stream.type == "Subtitle", stream.isExternal == true else { return nil }
-                    // 优先用 deliveryUrl
-                    if let deliveryUrl = stream.deliveryUrl, let format = stream.format {
-                        let urlString = baseUrl + deliveryUrl + tokenParam
-                        if let url = URL(string: urlString) {
-                            return (url, format, stream.language, stream.displayTitle)
-                        }
-                    }
-                    // 没有 deliveryUrl 时，尝试拼接 /Items/{itemId}/Subtitles/{index}/0/Stream.{ext}
+                    // 尝试拼接 /Items/{itemId}/Subtitles/{index}/0/Stream.{ext}
                     if !itemId.isEmpty, let idx = stream.index, let codec = stream.codec {
                         let ext = codec.lowercased()
                         let urlString = "\(baseUrl)/Items/\(itemId)/Subtitles/\(idx)/0/Stream.\(ext)\(tokenParam)"

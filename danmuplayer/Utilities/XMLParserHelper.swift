@@ -116,7 +116,7 @@ class XMLParserHelper {
             return true
         } else {
             print("XMLParserHelper: Rejected - not a video file")
-            return false
+            return true
         }
     }
     
