@@ -13,6 +13,7 @@ class FileBrowserViewModel: ObservableObject {
             case .success(let videoURL):
                 let subtitleItems = self.findSubtitleFiles(for: item)
                 let subtitleURLs: [URL] = subtitleItems.compactMap { self.constructWebDAVURL(for: $0) }
+                print("[调试] subtitleURLs: \(subtitleURLs)")
                 completion(videoURL, subtitleURLs)
             case .failure:
                 // 失败时只返回空数组
