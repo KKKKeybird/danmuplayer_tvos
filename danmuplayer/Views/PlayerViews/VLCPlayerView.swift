@@ -613,26 +613,44 @@ class VLCVideoPlayerUIView: UIView {
     func setup(with url: URL, onReady: @escaping (VLCMediaPlayer) -> Void) {
         let player = VLCMediaPlayer()
         let media = VLCMedia(url: url)
-        // 优化视频解码与缓存
+
+        guard let fontPath = copyFontFileToTmp() else {
+            print("字体复制失败")
+            return
+        }
+        let fontDir = (fontPath as NSString).deletingLastPathComponent
+
         var options: [String: Any] = [
-            "network-caching": 1000,              // 网络缓存(ms)
+            "network-caching": 1000,
             "clock-jitter": 0,
             "clock-synchro": 0,
-            "codec": "mediacodec_ndk,all",     // 尝试硬件解码（Android风格，VLCKit会忽略不支持项）
-            "avcodec-hw": "any",                // 允许硬件加速
+            "freetype-font": "Noto Serif CJK SC",
+            "freetype-rel-fontsize": 32,
+            "avcodec-hw": "any",
+            "freetype-fontpath": fontDir
         ]
-        // 字幕字体回退
-        let fallbackFont = "PingFang SC"
-        options["freetype-font"] = fallbackFont
-        options["freetype-rel-fontsize"] = 32 // 可根据需要调整字号
         media.addOptions(options)
         player.media = media
         player.drawable = self
-        
+
         vlcPlayer = player
         onReady(player)
     }
-    
+
+    func copyFontFileToTmp() -> String? {
+        let fileManager = FileManager.default
+        let tmpFontsDir = NSTemporaryDirectory() + "fonts/"
+        if !fileManager.fileExists(atPath: tmpFontsDir) {
+            try? fileManager.createDirectory(atPath: tmpFontsDir, withIntermediateDirectories: true)
+        }
+        let srcPath = Bundle.main.path(forResource: "NotoSerifCJK-Regular", ofType: "ttc", inDirectory: "fonts")!
+        let dstPath = tmpFontsDir + "NotoSerifCJK-Regular.ttc"
+        if !fileManager.fileExists(atPath: dstPath) {
+            try? fileManager.copyItem(atPath: srcPath, toPath: dstPath)
+        }
+        return dstPath
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         // 让视频按容器填充，保持比例（letterbox/pillarbox 由上层 .fill + .clipped 控制）
