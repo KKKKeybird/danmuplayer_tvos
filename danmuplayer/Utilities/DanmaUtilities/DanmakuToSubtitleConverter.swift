@@ -1,6 +1,6 @@
 import Foundation
 
-/// 将弹幕转换为VLC支持的字幕格式
+/// 将弹幕转换为支持的字幕格式
 class DanmakuToSubtitleConverter {
     
     /// 将弹幕列表转换为SRT字幕格式

@@ -1,13 +1,12 @@
 /// 视频播放设置视图 - 长按中心键进入
 import SwiftUI
-import VLCKitSPM
-import VLCUI
+import MPVKit
 
 /// 视频播放设置视图，整合所有播放器控制功能
 @available(tvOS 17.0, *)
 struct VideoPlayerSettingsView: View {
     @Binding var isPresented: Bool
-    let vlcPlayer: VLCMediaPlayer?
+    let mpvPlayer: MPVPlayer?
     let externalSubtitles: [SubtitleFileInfo]
     let onDismiss: () -> Void
     let videoURL: URL
@@ -292,52 +291,46 @@ extension VideoPlayerSettingsView {
     }
     
     private func loadAudioTracks() {
-        guard let player = vlcPlayer else { audioTracks = []; return }
+        guard let player = mpvPlayer else { audioTracks = []; return }
         var tracks: [AudioTrackSettingsView.AudioTrackInfo] = []
-        if let trackIndexes = player.audioTrackIndexes as? [Int],
-           let trackNames = player.audioTrackNames as? [String] {
-            for (index, name) in zip(trackIndexes, trackNames) {
-                let info = AudioTrackSettingsView.AudioTrackInfo(
-                    index: index,
-                    name: name.isEmpty ? "音轨 \(index)" : name,
-                    language: extractLanguage(from: name)
-                )
-                tracks.append(info)
-            }
+        for (index, track) in player.audioTracks.enumerated() {
+            let info = AudioTrackSettingsView.AudioTrackInfo(
+                index: index,
+                name: track.name.isEmpty ? "音轨 \(index)" : track.name,
+                language: extractLanguage(from: track.name)
+            )
+            tracks.append(info)
         }
         audioTracks = tracks
-        currentAudioTrackIndex = Int(player.currentAudioTrackIndex)
+        currentAudioTrackIndex = player.currentAudioTrackIndex
     }
     
     private func selectAudioTrack(index: Int) {
-        guard let player = vlcPlayer else { return }
-        player.currentAudioTrackIndex = Int32(index)
+        guard let player = mpvPlayer else { return }
+        player.currentAudioTrackIndex = index
         currentAudioTrackIndex = index
     }
     
     private func loadSubtitleTracks() {
-        guard let player = vlcPlayer else { subtitleTracks = []; return }
+        guard let player = mpvPlayer else { subtitleTracks = []; return }
         var tracks: [SubtitleTrackRowInfo] = []
-        if let trackIndexes = player.videoSubTitlesIndexes as? [Int],
-           let trackNames = player.videoSubTitlesNames as? [String] {
-            for (index, name) in zip(trackIndexes, trackNames) {
-                let info = SubtitleTrackRowInfo(
-                    index: index,
-                    name: name.isEmpty ? "字幕 \(index)" : name,
-                    language: extractLanguage(from: name),
-                    isExternal: false,
-                    url: nil
-                )
-                tracks.append(info)
-            }
+        for (index, track) in player.subtitleTracks.enumerated() {
+            let info = SubtitleTrackRowInfo(
+                index: index,
+                name: track.name.isEmpty ? "字幕 \(index)" : track.name,
+                language: extractLanguage(from: track.name),
+                isExternal: track.isExternal,
+                url: track.url
+            )
+            tracks.append(info)
         }
         subtitleTracks = tracks
-        currentSubtitleTrackIndex = Int(player.currentVideoSubTitleIndex)
+        currentSubtitleTrackIndex = player.currentSubtitleTrackIndex
     }
     
     private func selectSubtitleTrack(index: Int) {
-        guard let player = vlcPlayer else { return }
-        player.currentVideoSubTitleIndex = Int32(index)
+        guard let player = mpvPlayer else { return }
+        player.currentSubtitleTrackIndex = index
         currentSubtitleTrackIndex = index
     }
     
@@ -384,34 +377,29 @@ extension VideoPlayerSettingsView {
     }
     
     private func selectExternalSubtitle(subtitle: SubtitleFileInfo, index: Int) {
-        guard let player = vlcPlayer else { return }
+        guard let player = mpvPlayer else { return }
         if let url = subtitle.url {
-            let result = player.addPlaybackSlave(url, type: .subtitle, enforce: false)
-            if result == 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.activateExternalSubtitle(subtitle: subtitle)
-                }
+            player.addExternalSubtitle(url: url)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.activateExternalSubtitle(subtitle: subtitle)
             }
         }
     }
     
     private func activateExternalSubtitle(subtitle: SubtitleFileInfo) {
-        guard let player = vlcPlayer else { return }
-        if let trackIndexes = player.videoSubTitlesIndexes as? [Int],
-           let trackNames = player.videoSubTitlesNames as? [String] {
-            for (index, name) in zip(trackIndexes, trackNames) {
-                if name.contains(subtitle.name) || (subtitle.url != nil && name.contains(subtitle.url!.lastPathComponent)) {
-                    player.currentVideoSubTitleIndex = Int32(index)
-                    currentSubtitleTrackIndex = index
-                    break
-                }
+        guard let player = mpvPlayer else { return }
+        for (index, track) in player.subtitleTracks.enumerated() {
+            if track.name.contains(subtitle.name) || (subtitle.url != nil && track.name.contains(subtitle.url!.lastPathComponent)) {
+                player.currentSubtitleTrackIndex = index
+                currentSubtitleTrackIndex = index
+                break
             }
         }
     }
     
     private func disableSubtitle() {
-        guard let player = vlcPlayer else { return }
-        player.currentVideoSubTitleIndex = -1
+        guard let player = mpvPlayer else { return }
+        player.currentSubtitleTrackIndex = -1
         currentSubtitleTrackIndex = -1
     }
     
@@ -445,17 +433,14 @@ extension VideoPlayerSettingsView {
 @available(tvOS 17.0, *)
 struct AudioTrackSettingsView: View {
     @Binding var isPresented: Bool
-    let vlcPlayer: VLCMediaPlayer?
-    
+    let mpvPlayer: MPVPlayer?
     @State private var audioTracks: [AudioTrackInfo] = []
     @State private var currentTrackIndex: Int = 0
-    
     struct AudioTrackInfo {
         let index: Int
         let name: String
         let language: String?
     }
-    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -463,9 +448,7 @@ struct AudioTrackSettingsView: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .padding(.top, 20)
-                
                 Divider()
-                
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         if audioTracks.isEmpty {
@@ -487,9 +470,7 @@ struct AudioTrackSettingsView: View {
                     }
                     .padding(20)
                 }
-                
                 Divider()
-                
                 HStack {
                     Spacer()
                     Button("关闭") { isPresented = false }
@@ -509,37 +490,26 @@ struct AudioTrackSettingsView: View {
             }
         }
     }
-    
     private func loadAudioTracks() {
-        guard let player = vlcPlayer else { return }
-        
+        guard let player = mpvPlayer else { return }
         var tracks: [AudioTrackInfo] = []
-        
-        if let trackIndexes = player.audioTrackIndexes as? [Int],
-           let trackNames = player.audioTrackNames as? [String] {
-            
-            for (index, name) in zip(trackIndexes, trackNames) {
-                let track = AudioTrackInfo(
-                    index: index,
-                    name: name.isEmpty ? "音轨 \(index)" : name,
-                    language: extractLanguage(from: name)
-                )
-                tracks.append(track)
-            }
+        for (index, track) in player.audioTracks.enumerated() {
+            let trackInfo = AudioTrackInfo(
+                index: index,
+                name: track.name.isEmpty ? "音轨 \(index)" : track.name,
+                language: extractLanguage(from: track.name)
+            )
+            tracks.append(trackInfo)
         }
-        
         audioTracks = tracks
-        currentTrackIndex = Int(player.currentAudioTrackIndex)
+        currentTrackIndex = player.currentAudioTrackIndex
     }
-    
     private func selectAudioTrack(index: Int) {
-        guard let player = vlcPlayer else { return }
-        
-        player.currentAudioTrackIndex = Int32(index)
+        guard let player = mpvPlayer else { return }
+        player.currentAudioTrackIndex = index
         currentTrackIndex = index
         isPresented = false
     }
-    
     private func extractLanguage(from name: String) -> String? {
         let languagePatterns = [
             "chinese": "中文",
@@ -547,17 +517,14 @@ struct AudioTrackSettingsView: View {
             "japanese": "日文",
             "korean": "韩文"
         ]
-        
         let lowercasedName = name.lowercased()
         for (pattern, language) in languagePatterns {
             if lowercasedName.contains(pattern) {
                 return language
             }
         }
-        
         return nil
     }
-    
     private func audioTrackRow(track: AudioTrackInfo) -> some View {
         Button(action: {
             selectAudioTrack(index: track.index)
@@ -594,19 +561,16 @@ struct AudioTrackSettingsView: View {
 @available(tvOS 17.0, *)
 struct SubtitleSettingsView: View {
     @Binding var isPresented: Bool
-    let vlcPlayer: VLCMediaPlayer?
+    let mpvPlayer: MPVPlayer?
     let externalSubtitles: [SubtitleFileInfo]
-    
     @State private var subtitleTracks: [SubtitleTrackInfo] = []
     @State private var currentTrackIndex: Int = 0
-    
     struct SubtitleTrackInfo {
         let index: Int
         let name: String
         let language: String?
         let isExternal: Bool
     }
-    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -614,9 +578,7 @@ struct SubtitleSettingsView: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .padding(.top, 20)
-                
                 Divider()
-                
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         if subtitleTracks.isEmpty && externalSubtitles.isEmpty {
@@ -639,7 +601,6 @@ struct SubtitleSettingsView: View {
                                     subtitleTrackRow(track: track)
                                 }
                             }
-                            
                             if !externalSubtitles.isEmpty {
                                 Text("外部字幕")
                                     .font(.headline)
@@ -648,8 +609,6 @@ struct SubtitleSettingsView: View {
                                     externalSubtitleRow(subtitle: subtitle, index: index)
                                 }
                             }
-                            
-                            // 禁用字幕选项
                             Button(action: {
                                 disableSubtitle()
                             }) {
@@ -671,9 +630,7 @@ struct SubtitleSettingsView: View {
                     }
                     .padding(20)
                 }
-                
                 Divider()
-                
                 HStack {
                     Spacer()
                     Button("关闭") { isPresented = false }
@@ -693,77 +650,53 @@ struct SubtitleSettingsView: View {
             }
         }
     }
-    
     private func loadSubtitleTracks() {
-        guard let player = vlcPlayer else { return }
-        
+        guard let player = mpvPlayer else { return }
         var tracks: [SubtitleTrackInfo] = []
-        
-        if let trackIndexes = player.videoSubTitlesIndexes as? [Int],
-           let trackNames = player.videoSubTitlesNames as? [String] {
-            
-            for (index, name) in zip(trackIndexes, trackNames) {
-                let track = SubtitleTrackInfo(
-                    index: index,
-                    name: name.isEmpty ? "字幕 \(index)" : name,
-                    language: extractLanguage(from: name),
-                    isExternal: false
-                )
-                tracks.append(track)
-            }
+        for (index, track) in player.subtitleTracks.enumerated() {
+            let trackInfo = SubtitleTrackInfo(
+                index: index,
+                name: track.name.isEmpty ? "字幕 \(index)" : track.name,
+                language: extractLanguage(from: track.name),
+                isExternal: track.isExternal
+            )
+            tracks.append(trackInfo)
         }
-        
         subtitleTracks = tracks
-        currentTrackIndex = Int(player.currentVideoSubTitleIndex)
+        currentTrackIndex = player.currentSubtitleTrackIndex
     }
-    
     private func selectSubtitleTrack(index: Int) {
-        guard let player = vlcPlayer else { return }
-        
-        player.currentVideoSubTitleIndex = Int32(index)
+        guard let player = mpvPlayer else { return }
+        player.currentSubtitleTrackIndex = index
         currentTrackIndex = index
         isPresented = false
     }
-    
     private func selectExternalSubtitle(subtitle: SubtitleFileInfo, index: Int) {
-        guard let player = vlcPlayer else { return }
-        
+        guard let player = mpvPlayer else { return }
         if let url = subtitle.url {
-            let result = player.addPlaybackSlave(url, type: .subtitle, enforce: false)
-            if result == 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.activateExternalSubtitle(subtitle: subtitle)
-                }
+            player.addExternalSubtitle(url: url)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.activateExternalSubtitle(subtitle: subtitle)
             }
         }
-        
         isPresented = false
     }
-    
     private func activateExternalSubtitle(subtitle: SubtitleFileInfo) {
-        guard let player = vlcPlayer else { return }
-        
-        if let trackIndexes = player.videoSubTitlesIndexes as? [Int],
-           let trackNames = player.videoSubTitlesNames as? [String] {
-            
-            for (index, name) in zip(trackIndexes, trackNames) {
-                if name.contains(subtitle.name) || (subtitle.url != nil && name.contains(subtitle.url!.lastPathComponent)) {
-                    player.currentVideoSubTitleIndex = Int32(index)
-                    currentTrackIndex = index
-                    break
-                }
+        guard let player = mpvPlayer else { return }
+        for (index, track) in player.subtitleTracks.enumerated() {
+            if track.name.contains(subtitle.name) || (subtitle.url != nil && track.name.contains(subtitle.url!.lastPathComponent)) {
+                player.currentSubtitleTrackIndex = index
+                currentTrackIndex = index
+                break
             }
         }
     }
-    
     private func disableSubtitle() {
-        guard let player = vlcPlayer else { return }
-        
-        player.currentVideoSubTitleIndex = -1
+        guard let player = mpvPlayer else { return }
+        player.currentSubtitleTrackIndex = -1
         currentTrackIndex = -1
         isPresented = false
     }
-    
     private func extractLanguage(from name: String) -> String? {
         let languagePatterns = [
             "chinese": "中文",
@@ -771,17 +704,14 @@ struct SubtitleSettingsView: View {
             "japanese": "日文",
             "korean": "韩文"
         ]
-        
         let lowercasedName = name.lowercased()
         for (pattern, language) in languagePatterns {
             if lowercasedName.contains(pattern) {
                 return language
             }
         }
-        
         return nil
     }
-    
     private func subtitleTrackRow(track: SubtitleTrackInfo) -> some View {
         Button(action: {
             selectSubtitleTrack(index: track.index)
@@ -811,7 +741,6 @@ struct SubtitleSettingsView: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
     private func externalSubtitleRow(subtitle: SubtitleFileInfo, index: Int) -> some View {
         Button(action: {
             selectExternalSubtitle(subtitle: subtitle, index: index)
@@ -1033,5 +962,3 @@ struct SubtitleFileInfo {
     let language: String?
 }
 
-// MARK: - 弹幕设置结构
-// 注意：DanmakuSettings 定义在 VLCPlayerView.swift 中，这里不再重复定义

@@ -225,7 +225,7 @@ class WebDAVClient {
                         return
                     }
                     
-                    // 为了让 VLC 使用 Range 而无需自定义 Header，这里在 URL 中内嵌 Basic 认证信息
+                    // 为了使用 Range 而无需自定义 Header，这里在 URL 中内嵌 Basic 认证信息
                     if var components = URLComponents(url: fileURL, resolvingAgainstBaseURL: false) {
                         components.user = credentials.username
                         components.password = credentials.password

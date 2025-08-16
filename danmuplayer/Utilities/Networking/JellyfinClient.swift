@@ -628,7 +628,7 @@ class JellyfinClient {
     }
 
     // MARK: - 获取原始文件直链（支持 Range）
-    /// 通过 /Videos/{Id}/stream API 获取原始文件直链，VLC 将自行使用 HTTP Range 播放。
+    /// 通过 /Videos/{Id}/stream API 获取原始文件直链，将自行使用 HTTP Range 播放。
     /// 使用 Static=true 参数确保返回原始文件流。
     func getDirectFileUrl(itemId: String) -> URL? {
         guard let currentUserId = authenticatedUserId ?? userId else {

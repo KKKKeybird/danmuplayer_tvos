@@ -1,13 +1,13 @@
 import SwiftUI
 
-// MARK: - VLC播放器容器包装器
+// MARK: - 播放器容器包装器
 @available(tvOS 17.0, *)
 struct WebDAVVideoPlayerWrapper: View {
     let videoItem: WebDAVItem
     let viewModel: FileBrowserViewModel
     @Environment(\.dismiss) private var dismiss
     
-    @State private var playerContainer: VLCPlayerContainer?
+    @State private var playerContainer: MPVPlayerContainer?
     @State private var isLoading = true
     @State private var errorMessage: String?
     
@@ -67,8 +67,8 @@ struct WebDAVVideoPlayerWrapper: View {
                     self.isLoading = false
                     return
                 }
-                print("WebDAV: 创建 VLCPlayerContainer")
-                let container = VLCPlayerContainer.create(
+                print("WebDAV: 创建 MPVPlayerContainer")
+                let container = MPVPlayerContainer.create(
                     videoURL: playbackURL,
                     originalFileName: videoItem.name,
                     subtitleURLs: subtitleURLs,

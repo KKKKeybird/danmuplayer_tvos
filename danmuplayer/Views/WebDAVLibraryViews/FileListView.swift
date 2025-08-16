@@ -225,7 +225,7 @@ private struct WebDAVPlaybackBridge: View {
     let viewModel: FileBrowserViewModel
     let onDismiss: () -> Void
     
-    @State private var container: VLCPlayerContainer?
+    @State private var container: MPVPlayerContainer?
     @State private var isLoading = true
     @State private var errorMessage: String?
     
@@ -257,7 +257,7 @@ private struct WebDAVPlaybackBridge: View {
                     isLoading = false
                     return
                 }
-                container = VLCPlayerContainer.create(
+                container = MPVPlayerContainer.create(
                     videoURL: url,
                     originalFileName: videoItem.name,
                     subtitleURLs: subtitles,

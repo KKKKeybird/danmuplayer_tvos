@@ -8,7 +8,7 @@ struct JellyfinVideoPlayerWrapper: View {
     let viewModel: JellyfinMediaLibraryViewModel
     let onDismiss: () -> Void
     
-    @State private var playerContainer: VLCPlayerContainer?
+    @State private var playerContainer: MPVPlayerContainer?
     @State private var isLoading = true
     @State private var errorMessage: String?
     
@@ -43,8 +43,8 @@ struct JellyfinVideoPlayerWrapper: View {
                 // 生成更合适的文件名用于弹幕匹配
                 let fileName = self.generateFileName()
                 
-                // 使用VLCPlayerContainer的统一创建方法
-                let container = VLCPlayerContainer.create(
+                // 使用MPVPlayerContainer的统一创建方法
+                let container = MPVPlayerContainer.create(
                     videoURL: playbackURL,
                     originalFileName: fileName,
                     subtitleURLs: subtitleURLs,
