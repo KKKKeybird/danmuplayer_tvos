@@ -7,13 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		082CB98E2E464B8B00FDEE2E /* VLCUI in Frameworks */ = {isa = PBXBuildFile; productRef = 082CB98D2E464B8B00FDEE2E /* VLCUI */; };
 		082CBADF2E4A0E2B00FDEE2E /* 项目API.md in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADC2E4A0E2B00FDEE2E /* 项目API.md */; };
 		082CBAE02E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADD2E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md */; };
 		082CBAE12E4A0E2B00FDEE2E /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADE2E4A0E2B00FDEE2E /* LICENSE */; };
-		0840961F2E50468F00448599 /* MPVKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0840961E2E50468F00448599 /* MPVKit */; };
-		084096212E50468F00448599 /* MPVKit-GPL in Frameworks */ = {isa = PBXBuildFile; productRef = 084096202E50468F00448599 /* MPVKit-GPL */; };
-		085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 085DA4D62E44704D00C638F5 /* VLCKitSPM */; };
+		08AB5CBD2E50744200024922 /* MPVKit in Frameworks */ = {isa = PBXBuildFile; productRef = 08AB5CBC2E50744200024922 /* MPVKit */; };
 		08B52A9F2E43927400D8EA9E /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 08B52A9E2E43926600D8EA9E /* README.md */; };
 /* End PBXBuildFile section */
 
@@ -55,10 +52,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0840961F2E50468F00448599 /* MPVKit in Frameworks */,
-				084096212E50468F00448599 /* MPVKit-GPL in Frameworks */,
-				082CB98E2E464B8B00FDEE2E /* VLCUI in Frameworks */,
-				085DA4D72E44704D00C638F5 /* VLCKitSPM in Frameworks */,
+				08AB5CBD2E50744200024922 /* MPVKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -210,9 +204,7 @@
 			mainGroup = 0822C9262E42440300609CE6;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */,
-				082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */,
-				0840961D2E50468F00448599 /* XCRemoteSwiftPackageReference "MPVKit" */,
+				08AB5CBB2E50744200024922 /* XCRemoteSwiftPackageReference "MPVKit" */,
 			);
 			productRefGroup = 0822C9302E42440400609CE6 /* Products */;
 			projectDirPath = "";
@@ -580,15 +572,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/LePips/VLCUI";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.7.3;
-			};
-		};
-		0840961D2E50468F00448599 /* XCRemoteSwiftPackageReference "MPVKit" */ = {
+		08AB5CBB2E50744200024922 /* XCRemoteSwiftPackageReference "MPVKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mpvkit/MPVKit.git";
 			requirement = {
@@ -596,36 +580,13 @@
 				minimumVersion = 0.40.0;
 			};
 		};
-		085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.6.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		082CB98D2E464B8B00FDEE2E /* VLCUI */ = {
+		08AB5CBC2E50744200024922 /* MPVKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 082CB98B2E4649E600FDEE2E /* XCRemoteSwiftPackageReference "VLCUI" */;
-			productName = VLCUI;
-		};
-		0840961E2E50468F00448599 /* MPVKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0840961D2E50468F00448599 /* XCRemoteSwiftPackageReference "MPVKit" */;
+			package = 08AB5CBB2E50744200024922 /* XCRemoteSwiftPackageReference "MPVKit" */;
 			productName = MPVKit;
-		};
-		084096202E50468F00448599 /* MPVKit-GPL */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0840961D2E50468F00448599 /* XCRemoteSwiftPackageReference "MPVKit" */;
-			productName = "MPVKit-GPL";
-		};
-		085DA4D62E44704D00C638F5 /* VLCKitSPM */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 085DA4D52E44704D00C638F5 /* XCRemoteSwiftPackageReference "vlckit-spm" */;
-			productName = VLCKitSPM;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

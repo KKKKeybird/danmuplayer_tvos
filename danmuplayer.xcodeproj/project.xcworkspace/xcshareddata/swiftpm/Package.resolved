@@ -1,5 +1,5 @@
 {
-  "originHash" : "9254cd64273e3e7983941b6e76d3c436b4a72ef74a3f6f2fc14b40998e307397",
+  "originHash" : "ef00e3d8fbb2d30a5feeffd901afe269da81ef29cbd621b41e76ca47bb5e65af",
   "pins" : [
     {
       "identity" : "mpvkit",
@@ -8,24 +8,6 @@
       "state" : {
         "revision" : "32794687269115d5f93495d5bc3a86bf7bf95293",
         "version" : "0.40.0"
-      }
-    },
-    {
-      "identity" : "vlckit-spm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tylerjonesio/vlckit-spm",
-      "state" : {
-        "revision" : "e932bbd488872fdb74f6654d28c2f291eae03daf",
-        "version" : "3.6.0"
-      }
-    },
-    {
-      "identity" : "vlcui",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/LePips/VLCUI",
-      "state" : {
-        "revision" : "3549dbca852730ba43bd6f9a62f3a20ed19ee71a",
-        "version" : "0.7.3"
       }
     }
   ],
