@@ -10,7 +10,7 @@
 		082CBADF2E4A0E2B00FDEE2E /* 项目API.md in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADC2E4A0E2B00FDEE2E /* 项目API.md */; };
 		082CBAE02E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADD2E4A0E2B00FDEE2E /* DANDANPLAY_API_SETUP.md */; };
 		082CBAE12E4A0E2B00FDEE2E /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 082CBADE2E4A0E2B00FDEE2E /* LICENSE */; };
-		08AB5CBD2E50744200024922 /* MPVKit in Frameworks */ = {isa = PBXBuildFile; productRef = 08AB5CBC2E50744200024922 /* MPVKit */; };
+		08AB5DFC2E507CD200024922 /* MPVKit in Frameworks */ = {isa = PBXBuildFile; productRef = 08AB5DFB2E507CD200024922 /* MPVKit */; };
 		08B52A9F2E43927400D8EA9E /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 08B52A9E2E43926600D8EA9E /* README.md */; };
 /* End PBXBuildFile section */
 
@@ -52,7 +52,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				08AB5CBD2E50744200024922 /* MPVKit in Frameworks */,
+				08AB5DFC2E507CD200024922 /* MPVKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -204,7 +204,7 @@
 			mainGroup = 0822C9262E42440300609CE6;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				08AB5CBB2E50744200024922 /* XCRemoteSwiftPackageReference "MPVKit" */,
+				08AB5DF62E507BCF00024922 /* XCRemoteSwiftPackageReference "MPVKit" */,
 			);
 			productRefGroup = 0822C9302E42440400609CE6 /* Products */;
 			projectDirPath = "";
@@ -572,7 +572,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		08AB5CBB2E50744200024922 /* XCRemoteSwiftPackageReference "MPVKit" */ = {
+		08AB5DF62E507BCF00024922 /* XCRemoteSwiftPackageReference "MPVKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mpvkit/MPVKit.git";
 			requirement = {
@@ -583,9 +583,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		08AB5CBC2E50744200024922 /* MPVKit */ = {
+		08AB5DFB2E507CD200024922 /* MPVKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 08AB5CBB2E50744200024922 /* XCRemoteSwiftPackageReference "MPVKit" */;
+			package = 08AB5DF62E507BCF00024922 /* XCRemoteSwiftPackageReference "MPVKit" */;
 			productName = MPVKit;
 		};
 /* End XCSwiftPackageProductDependency section */

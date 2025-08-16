@@ -1,6 +1,6 @@
 /// 视频播放设置视图 - 长按中心键进入
 import SwiftUI
-import MPVKit
+import MPVKit_GPL
 
 /// 视频播放设置视图，整合所有播放器控制功能
 @available(tvOS 17.0, *)

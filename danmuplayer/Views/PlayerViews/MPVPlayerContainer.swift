@@ -1,6 +1,6 @@
 /// MPV播放器容器 - 视频播放生成容器
 import SwiftUI
-import MPVKit
+import MPVKit_GPL
 
 @available(tvOS 17.0, *)
 struct MPVPlayerContainer: View {

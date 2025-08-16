@@ -1,5 +1,5 @@
 import Foundation
-import MPVKit
+import MPVKit_GPL
 import SwiftUI
 
 /// MPVKit字幕轨道管理器
