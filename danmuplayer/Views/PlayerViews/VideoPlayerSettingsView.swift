@@ -190,26 +190,14 @@ struct VideoPlayerSettingsView: View {
                                             Text(ep.episodeTitle).font(.caption).foregroundColor(.gray)
                                         }
                                         .padding(.vertical, 8)
-                                        .padding(.horizontal, 8)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 12)
                                         .background(Color.blue.opacity(0.08))
                                         .cornerRadius(8)
-                                    }.buttonStyle(PlainButtonStyle())
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
                             }
-                        }
-                        
-                        // 调试
-                        VStack(alignment: .leading, spacing: 12) {
-                            Button {
-                                NotificationCenter.default.post(name: NSNotification.Name("DanmakuDebugToggle"), object: nil)
-                                isPresented = false
-                            } label: {
-                                HStack {
-                                    Image(systemName: "ladybug").foregroundColor(.white)
-                                    Text("打开调试信息").foregroundColor(.white)
-                            }
-                            }
-                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding(20)
@@ -242,8 +230,7 @@ struct VideoPlayerSettingsView: View {
         }
         .onAppear {
             loadAudioTracks()
-            loadSubtitleTracks()
-            fetchCandidateEpisodes()
+            loadSubtitleTracks()    
         }
     }
 }
@@ -443,6 +430,7 @@ extension VideoPlayerSettingsView {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let episodes):
+                    print("候选剧集数量:", episodes.count)
                     candidateEpisodes = episodes
                 case .failure:
                     candidateEpisodes = []
@@ -907,9 +895,6 @@ struct DanmakuMatchView: View {
             .frame(width: 500)
             .frame(maxHeight: 400)
             .background(Color.black.opacity(0.9))
-            .onAppear {
-                // 这里应该加载候选剧集
-            }
             .onExitCommand {
                 isPresented = false
             }

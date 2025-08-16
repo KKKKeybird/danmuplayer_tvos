@@ -614,20 +614,12 @@ class VLCVideoPlayerUIView: UIView {
         let player = VLCMediaPlayer()
         let media = VLCMedia(url: url)
 
-        guard let fontPath = copyFontFileToTmp() else {
-            print("字体复制失败")
-            return
-        }
-        let fontDir = (fontPath as NSString).deletingLastPathComponent
-
-        var options: [String: Any] = [
+        // 不传 freetype 字体配置，使用 libvlc 的默认字体和行为
+        let options: [String: Any] = [
             "network-caching": 1000,
             "clock-jitter": 0,
             "clock-synchro": 0,
-            "freetype-font": "Noto Serif CJK SC",
-            "freetype-rel-fontsize": 32,
-            "avcodec-hw": "any",
-            "freetype-fontpath": fontDir
+            "avcodec-hw": "any"
         ]
         media.addOptions(options)
         player.media = media
@@ -635,20 +627,6 @@ class VLCVideoPlayerUIView: UIView {
 
         vlcPlayer = player
         onReady(player)
-    }
-
-    func copyFontFileToTmp() -> String? {
-        let fileManager = FileManager.default
-        let tmpFontsDir = NSTemporaryDirectory() + "fonts/"
-        if !fileManager.fileExists(atPath: tmpFontsDir) {
-            try? fileManager.createDirectory(atPath: tmpFontsDir, withIntermediateDirectories: true)
-        }
-        let srcPath = Bundle.main.path(forResource: "NotoSerifCJK-Regular", ofType: "ttc", inDirectory: "fonts")!
-        let dstPath = tmpFontsDir + "NotoSerifCJK-Regular.ttc"
-        if !fileManager.fileExists(atPath: dstPath) {
-            try? fileManager.copyItem(atPath: srcPath, toPath: dstPath)
-        }
-        return dstPath
     }
 
     override func layoutSubviews() {

@@ -214,7 +214,7 @@ class DanDanPlayAPI {
             let hasSize = fileInfo.fileSize > 0
             if hasHash { requestBody["fileHash"] = fileInfo.fileHash } else { requestBody["fileHash"] = String(repeating: "0", count: 32) }
             if hasSize { requestBody["fileSize"] = fileInfo.fileSize } else { requestBody["fileSize"] = "1000" }
-            requestBody["matchMode"] = (hasHash && hasSize) ? "hashAndFileName" : "fileNameOnly"
+            requestBody["matchMode"] = "fileNameOnly"
 
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -252,7 +252,6 @@ class DanDanPlayAPI {
                 
                 do {
                     let matchResult = try JSONDecoder().decode(DanDanPlayMatchResult.self, from: data)
-                    
                     // 检查API调用是否成功
                     guard matchResult.success, matchResult.errorCode == 0 else {
                         print("Match API调用失败: \(matchResult.errorMessage ?? "未知错误")")
