@@ -619,7 +619,7 @@ class VLCVideoPlayerUIView: UIView {
             "network-caching": 1000,
             "clock-jitter": 0,
             "clock-synchro": 0,
-            "avcodec-hw": "any"
+            "avcodec-hw": "any",
         ]
         media.addOptions(options)
         player.media = media
