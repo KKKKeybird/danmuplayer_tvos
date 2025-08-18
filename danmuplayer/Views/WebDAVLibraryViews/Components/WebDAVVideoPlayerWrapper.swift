@@ -68,9 +68,10 @@ struct WebDAVVideoPlayerWrapper: View {
                     return
                 }
                 print("WebDAV: 创建 VLCPlayerContainer")
+                let fileName = videoItem.name.applyingTransform(.traditionalToSimplifiedChinese, reverse: false) ?? videoItem.name
                 let container = VLCPlayerContainer.create(
                     videoURL: playbackURL,
-                    originalFileName: videoItem.name,
+                    originalFileName: fileName,
                     subtitleURLs: subtitleURLs,
                     onDismiss: {
                         print("WebDAV: 播放器请求关闭")

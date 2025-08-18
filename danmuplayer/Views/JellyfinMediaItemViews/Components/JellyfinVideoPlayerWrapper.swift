@@ -77,7 +77,10 @@ struct JellyfinVideoPlayerWrapper: View {
         } else if let episodeNumber = item.indexNumber {
             fileName = "\(fileName) E\(String(format: "%02d", episodeNumber))"
         }
-        
+
+        // 将繁体中文转换为简体中文
+        fileName = fileName.applyingTransform(.traditionalToSimplifiedChinese, reverse: false) ?? fileName
+
         return fileName
     }
 }
