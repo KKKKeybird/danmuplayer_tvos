@@ -214,7 +214,7 @@ class DanDanPlayAPI {
             let hasSize = fileInfo.fileSize > 0
             if hasHash { requestBody["fileHash"] = fileInfo.fileHash } else { requestBody["fileHash"] = String(repeating: "0", count: 32) }
             if hasSize { requestBody["fileSize"] = fileInfo.fileSize } else { requestBody["fileSize"] = "1000" }
-            requestBody["matchMode"] = "fileNameOnly"
+            requestBody["matchMode"] = (hasHash && hasSize) ? "hashAndFileName" : "fileNameOnly"
 
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
